@@ -1,0 +1,64 @@
+name: Validate Skills
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install pyyaml --quiet
+
+      - name: Validate skills and manifests
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, re, sys, yaml
+
+          root = pathlib.Path(".")
+          version = (root / "VERSION").read_text().strip()
+          errors = []
+
+          marketplace = json.loads((root / ".claude-plugin/marketplace.json").read_text())
+          listed = {s.removeprefix("./").rstrip("/") for s in marketplace["plugins"][0]["skills"]}
+          if marketplace["plugins"][0]["version"] != version:
+              errors.append(f"marketplace.json version != {version}")
+
+          for manifest in [".claude-plugin/plugin.json", ".codex-plugin/plugin.json", ".cursor-plugin/plugin.json", ".grok-plugin/plugin.json", "gemini-extension.json"]:
+              if json.loads((root / manifest).read_text())["version"] != version:
+                  errors.append(f"{manifest} version != {version}")
+
+          for skill_dir in sorted(root.glob("hubpost-*/")):
+              name = skill_dir.name
+              skill_md = skill_dir / "SKILL.md"
+              if not skill_md.exists():
+                  errors.append(f"{skill_md} missing")
+                  continue
+              match = re.match(r"^---\n(.*?)\n---\n", skill_md.read_text(), re.DOTALL)
+              if not match:
+                  errors.append(f"{skill_md}: no frontmatter")
+                  continue
+              fm = yaml.safe_load(match.group(1))
+              desc = fm.get("description") or ""
+              if fm.get("name") != name:
+                  errors.append(f"{skill_md}: name != {name}")
+              if str(fm.get("version")) != version:
+                  errors.append(f"{skill_md}: version != {version}")
+              if len(desc) > 1024:
+                  errors.append(f"{skill_md}: description over 1024 characters")
+              if "Use when" not in desc or "NOT for" not in desc:
+                  errors.append(f"{skill_md}: description needs 'Use when' and 'NOT for'")
+              if name not in listed:
+                  errors.append(f"{name} not listed in marketplace.json")
+
+          for error in errors:
+              print(f"::error::{error}")
+          sys.exit(1 if errors else 0)
+          PY

@@ -1,0 +1,30 @@
+{
+  "name": "hubpost",
+  "version": "0.1.0",
+  "description": "Schedule and publish social media posts to Instagram, TikTok, YouTube, Facebook, LinkedIn, X, Threads, Pinterest and Bluesky, and check how they did, right from your agent.",
+  "author": { "name": "HubPost", "email": "support@hubpost.co", "url": "https://hubpost.co" },
+  "homepage": "https://hubpost.co/mcp",
+  "repository": "https://github.com/hubpost-co/skills",
+  "license": "MIT",
+  "keywords": ["hubpost", "social media scheduler", "schedule posts", "content calendar"],
+  "skills": "./",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "HubPost",
+    "shortDescription": "Schedule and publish social posts from your agent",
+    "longDescription": "Schedule and publish social media posts to Instagram, TikTok, YouTube, Facebook, LinkedIn, X, Threads, Pinterest and Bluesky, and check how they did, right from your agent.",
+    "developerName": "HubPost",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://hubpost.co",
+    "privacyPolicyURL": "https://hubpost.co/legal/privacy-policy",
+    "termsOfServiceURL": "https://hubpost.co/legal/terms-of-use",
+    "defaultPrompt": [
+      "Schedule this video to TikTok and Instagram tomorrow at 6pm",
+      "What do I have scheduled this week?",
+      "How did my last five posts do?"
+    ],
+    "composerIcon": "./assets/logo.svg",
+    "logo": "./assets/logo.svg"
+  }
+}
