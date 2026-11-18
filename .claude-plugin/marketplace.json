@@ -1,17 +1,28 @@
 {
   "name": "hubpost",
-  "owner": { "name": "HubPost", "email": "support@hubpost.co" },
-  "metadata": { "description": "Schedule and publish social media posts to Instagram, TikTok, YouTube, Facebook, LinkedIn, X, Threads, Pinterest and Bluesky, and check how they did, right from your agent." },
+  "owner": {
+    "name": "HubPost",
+    "email": "support@hubpost.co"
+  },
+  "metadata": {
+    "description": "Schedule and publish social media posts to Instagram, TikTok, YouTube, Facebook, LinkedIn, X, Threads, Pinterest and Bluesky, and check how they did, right from your agent."
+  },
   "plugins": [
     {
       "name": "hubpost",
       "source": "./",
       "description": "Schedule and publish social media posts to Instagram, TikTok, YouTube, Facebook, LinkedIn, X, Threads, Pinterest and Bluesky, and check how they did, right from your agent.",
       "version": "0.1.0",
-      "author": { "name": "HubPost", "email": "support@hubpost.co" },
+      "author": {
+        "name": "HubPost",
+        "email": "support@hubpost.co"
+      },
       "homepage": "https://hubpost.co/mcp",
       "category": "productivity",
-      "skills": ["./hubpost-publish"]
+      "skills": [
+        "./hubpost-publish",
+        "./clipper"
+      ]
     }
   ]
 }
