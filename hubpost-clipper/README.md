@@ -20,7 +20,7 @@ A free agent skill that turns a livestream, its VOD, a podcast or any long video
 npx skills add hubpost-co/skills
 ```
 
-Or copy this folder to `~/.claude/skills/clipper`. Then open your agent and say **set this up for me**: it checks your computer and installs what is missing.
+Or copy this folder to `~/.claude/skills/hubpost-clipper`. Then open your agent and say **set this up for me**: it checks your computer and installs what is missing.
 
 Then say what you want:
 

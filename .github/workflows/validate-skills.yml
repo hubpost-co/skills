@@ -62,3 +62,11 @@ jobs:
               print(f"::error::{error}")
           sys.exit(1 if errors else 0)
           PY
+
+      - name: Check skill scripts
+        run: |
+          set -euo pipefail
+          for script in hubpost-*/scripts/*.sh; do
+            [ -e "$script" ] && bash -n "$script"
+          done
+          python3 -m py_compile hubpost-*/scripts/*.py

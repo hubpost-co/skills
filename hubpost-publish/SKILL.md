@@ -1,8 +1,9 @@
 ---
-version: 0.1.0
+version: 0.2.0
 name: hubpost-publish
 description: |
-  Schedule, publish and review social media posts with the HubPost MCP server on Instagram, TikTok, YouTube, Facebook, LinkedIn, X, Threads, Pinterest and Bluesky. Picks the right connected account, attaches media from the HubPost library, adapts the text per platform and confirms before anything goes out. Use when: "post this", "schedule this video", "put this on TikTok and Reels", "what is scheduled this week", or "how did my last posts do". NOT for creating or editing the media itself; make the image or video first, then hand it to this skill.
+  Schedule, publish and review social media posts with the HubPost MCP server on Instagram, TikTok, YouTube, Facebook, LinkedIn, X, Threads, Pinterest and Bluesky. Picks the right connected account, attaches media from the HubPost library, adapts the text per platform and confirms before anything goes out. Use when: "post this", "schedule this video", "put this on TikTok and Reels", "what is scheduled this week", or "how did my last posts do". NOT for creating or editing the media itself; make the image or video first, then hand it to this skill. Chain after hubpost-clipper once its clips are checked.
+argument-hint: "[file or media] [account or platform] [when]"
 ---
 
 # HubPost Publish

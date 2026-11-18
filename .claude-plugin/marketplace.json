@@ -12,7 +12,7 @@
       "name": "hubpost",
       "source": "./",
       "description": "Schedule and publish social media posts to Instagram, TikTok, YouTube, Facebook, LinkedIn, X, Threads, Pinterest and Bluesky, and check how they did, right from your agent.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "author": {
         "name": "HubPost",
         "email": "support@hubpost.co"
@@ -21,7 +21,7 @@
       "category": "productivity",
       "skills": [
         "./hubpost-publish",
-        "./clipper"
+        "./hubpost-clipper"
       ]
     }
   ]
