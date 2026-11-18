@@ -1,7 +1,7 @@
 # HubPost Skills
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![Version](https://img.shields.io/badge/version-0.1.0-green.svg)](./VERSION)
+[![Version](https://img.shields.io/badge/version-0.2.0-green.svg)](./VERSION)
 
 Agent skills for [HubPost](https://hubpost.co): schedule and publish to Instagram, TikTok, YouTube, Facebook, LinkedIn, X, Threads, Pinterest and Bluesky from Claude Code, Codex, Cursor, Gemini CLI and any agent that loads Markdown skills.
 
@@ -36,6 +36,7 @@ gemini extensions install https://github.com/hubpost-co/skills
 
 | Skill | Invoke (Claude Code) | What it does |
 |---|---|---|
+| [`hubpost-clipper`](./hubpost-clipper) | `/hubpost:hubpost-clipper` | Turn a livestream (live or VOD), a podcast or any long video into finished vertical clips on your own computer: chat and sound spikes, facecam layout, captions, credit, frame checks. Needs no HubPost account; hands finished clips to `hubpost-publish` when you want them scheduled. |
 | [`hubpost-publish`](./hubpost-publish) | `/hubpost:hubpost-publish` | Schedule, publish and review posts across every connected account, with per platform text and a confirmation before anything goes out. |
 
 ## Sign in
