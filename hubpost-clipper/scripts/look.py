@@ -31,6 +31,9 @@ def main():
     work = a.workdir
     source = os.path.join(work, "source.mp4")
     meta = load_json(os.path.join(work, "meta.json"))
+    global W, H, COLUMNS
+    if meta["height"] > meta["width"]:
+        W, H, COLUMNS = 270, 480, 8
     lo, hi = max(0.0, a.start - a.before), min(meta["duration"] - 0.2, a.end + a.after)
     for j in meta.get("joins") or []:
         if lo < j <= a.start:

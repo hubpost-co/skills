@@ -280,9 +280,14 @@ def render_frame(frame, plan, crop_w, src_h):
     bg = cv2.resize(small, (int(w * cover), int(h * cover)), interpolation=cv2.INTER_LINEAR)
     oy, ox = (bg.shape[0] - OUT_H) // 2, (bg.shape[1] - OUT_W) // 2
     out = (bg[oy:oy + OUT_H, ox:ox + OUT_W].astype(np.float32) * 0.45).astype(np.uint8)
-    fg_h = int(round(h * OUT_W / w))
-    fg = cv2.resize(frame, (OUT_W, fg_h), interpolation=cv2.INTER_AREA)
-    out[FIT_TOP:FIT_TOP + fg_h] = fg
+    # The whole frame, as large as it fits: a wide video sits in the upper part, a video that is
+    # already vertical fills the canvas.
+    fit = min(OUT_W / w, OUT_H / h)
+    fg_w, fg_h = int(round(w * fit)), int(round(h * fit))
+    fg = cv2.resize(frame, (fg_w, fg_h), interpolation=cv2.INTER_AREA if fit < 1 else cv2.INTER_CUBIC)
+    top = FIT_TOP if FIT_TOP + fg_h <= OUT_H else (OUT_H - fg_h) // 2
+    left = (OUT_W - fg_w) // 2
+    out[top:top + fg_h, left:left + fg_w] = fg
     return out
 
 
