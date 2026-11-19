@@ -157,7 +157,7 @@ def ytdlp_command():
 
 
 def source_info(url):
-    """Who made the video: used for the on-screen credit and the credit line of every post."""
+    """Who made the video and where it lives, kept in source.json for the hand-over."""
     res = subprocess.run(ytdlp_command() + ["-J", "--no-playlist", "--no-warnings", url],
                          capture_output=True, text=True)
     if res.returncode != 0 or not res.stdout.strip():

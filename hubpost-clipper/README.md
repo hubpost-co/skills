@@ -11,7 +11,6 @@ A free agent skill that turns a livestream, its VOD, a podcast or any long video
 - **Checks the scene before cutting**: what was said and shown before the moment, so each clip carries what a stranger needs to understand it, opens on a hook and ends on its payoff. Weak moments are dropped, not padded.
 - **Stream layout**: finds the facecam by itself and stacks it over the gameplay, keeping chat and counters out of the frame. Talking heads and podcasts are reframed on whoever is speaking.
 - **Edit**: captions two or three words at a time with key words highlighted, steady framing with no zooming in and out, audio levelled for social.
-- **Credit**: the creator's link on screen and in the post text of every clip, unless the video is your own.
 - **Check**: every clip is checked from real frames (a contact sheet per clip), and its captions are timed against the speech, before it is handed to you.
 - **Remembers your preferences**: it asks its questions once.
 
@@ -65,7 +64,7 @@ The Python packages go into a private folder inside the skill (`.venv`), so noth
 
 ## Other people's streams
 
-A credit and a link are not permission. Clip a stream when its creator runs a clipping programme, when a campaign brief covers it, or when you have their written OK. Platforms may not monetise reused footage. The skill refuses to drop the credit on someone else's video.
+The skill writes nothing on the clip about whose stream it is, so it works the same for your own streams. When the stream is someone else's, crediting them in the description is on you, and a credit is not permission: clip a stream when its creator runs a clipping programme, when a campaign brief covers it, or when you have their written OK. Platforms may not monetise reused footage.
 
 ## What is inside
 

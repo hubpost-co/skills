@@ -2,7 +2,7 @@
 version: 0.2.0
 name: hubpost-clipper
 description: |
-  Turns a livestream (while it is live, its VOD, or a recording of it already on the computer), a podcast or any long video into finished vertical 9:16 clips on the person's own computer. Watches a live stream as it happens, scans a VOD of many hours without downloading it whole, or takes an mp4 with no chat at all; Claude reads everything that was said, uses chat and sound as hints, checks the scene around each moment and picks the ones a stranger understands; stacks facecam over gameplay or reframes on the speaker; adds word-timed captions, punch-ins, levelled audio and the creator's credit; then checks every clip from real frames. Use when: "clip this stream", "clip this live", "watch this channel and clip it", "clip this VOD", "clip this recording", "I have the mp4 of my stream", "make shorts from this video", "turn this podcast into clips", "Twitch clips", "gameplay clips", "clipper", or "set this up for me" right after installing. NOT for writing scripts, editing a video the person shot as one finished piece, or publishing the clips; it hands over files.
+  Turns a livestream (while it is live, its VOD, or a recording of it already on the computer), a podcast or any long video into finished vertical 9:16 clips on the person's own computer. Watches a live stream as it happens, scans a VOD of many hours without downloading it whole, or takes an mp4 with no chat at all; Claude reads everything that was said, uses chat and sound as hints, checks the scene around each moment and picks the ones a stranger understands; stacks facecam over gameplay or reframes on the speaker; adds word-timed captions and levelled audio; then checks every clip from real frames. Use when: "clip this stream", "clip this live", "watch this channel and clip it", "clip this VOD", "clip this recording", "I have the mp4 of my stream", "make shorts from this video", "turn this podcast into clips", "Twitch clips", "gameplay clips", "clipper", or "set this up for me" right after installing. NOT for writing scripts, editing a video the person shot as one finished piece, or publishing the clips; it hands over files.
 argument-hint: "[channel, live link, VOD link or file] [--quick] [--range h:mm:ss-h:mm:ss]"
 allowed-tools: Bash
 ---
@@ -31,13 +31,12 @@ Run `$PY $SKILL/scripts/prefs.py show`.
 3. What kind of moments are you after? [the best of whatever happens: funny, a fail, a strong opinion, a story, something useful]
 4. Caption highlight colour? [auto, picked from the video]
 5. Language spoken in the video? [detect it]
-6. Is this your own video, or someone else's? [someone else's: their name and link go on every clip]
 
 Reply with only the numbers you want to change, or say "go".
 
 ---
 
-After the first run, save what they chose with `$PY $SKILL/scripts/prefs.py set count=5 min_seconds=20 ...` (keys: `count`, `min_seconds`, `max_seconds`, `moments`, `color`, `zoom`, `sfx`, `language`, `output`, `after`, `credit`) and tell them once that it is remembered. Do not save a choice that is about this one video.
+After the first run, save what they chose with `$PY $SKILL/scripts/prefs.py set count=5 min_seconds=20 ...` (keys: `count`, `min_seconds`, `max_seconds`, `moments`, `color`, `zoom`, `sfx`, `language`, `output`, `after`) and tell them once that it is remembered. Do not save a choice that is about this one video.
 
 ### Learn their taste
 
@@ -63,7 +62,7 @@ Before the first run of each kind, give the two or three lines below that apply 
 - **Live**: the computer has to stay awake and online for as long as they want it watched. A moment is saved a little after it happens, never before. On a small channel the chat is too quiet to point at moments; the whole watch is recorded and read instead (`--all`), which takes more disk.
 - **A recording or a stream with no chat**: nothing is lost that matters. Chat only points at where to look; the choice is made from what was said and shown.
 - **Twitch**: live chat and chat replay are read the way a logged-out viewer's browser reads them. Twitch can change that without notice; when it does, the sound still works. VODs expire, and subscriber-only VODs cannot be read.
-- **Someone else's stream**: a credit and a link go on every clip, and that is still not permission. They need the creator's clipping programme, a campaign brief or a written OK, and reused footage may not be monetised by the platforms.
+- **Someone else's stream**: nothing is written on the clip about whose stream it is; crediting the creator in the post's description is the person's own job, and a credit is still not permission. They need the creator's clipping programme, a campaign brief or a written OK, and reused footage may not be monetised by the platforms.
 - **Captions**: in a stream the game's voices and the streamer's are mixed; a misheard word is fixed in the transcript before the edit.
 - **An avatar instead of a camera**: the facecam is found by its face, and a drawn or 3D avatar has none, so those clips use the full frame over a soft background instead of the stacked layout.
 
@@ -96,7 +95,7 @@ Longer: scout first, download only what is worth it.
 
 ### C. A recording already on the computer
 
-`$PY $SKILL/scripts/fetch.py "<path>" <work>`, whatever its length. The file is linked or copied, never changed. A recording has no chat, and that is fine: the moments come from reading what was said, with the sound as a hint. There is no `source.json` for a local file: ask whose video it is and put the answer in `settings.credit` (step 7).
+`$PY $SKILL/scripts/fetch.py "<path>" <work>`, whatever its length. The file is linked or copied, never changed. A recording has no chat, and that is fine: the moments come from reading what was said, with the sound as a hint.
 
 ## 5. Transcribe
 
@@ -175,7 +174,7 @@ Score each candidate 1-10 on `hook` (would the first two seconds stop a thumb), 
 
 ```json
 {
-  "settings": {"count": 5, "min_seconds": 20, "max_seconds": 60, "color": "auto", "credit": null},
+  "settings": {"count": 5, "min_seconds": 20, "max_seconds": 60, "color": "auto"},
   "clips": [
     {
       "start": 0.0,
@@ -195,7 +194,6 @@ Score each candidate 1-10 on `hook` (would the first two seconds stop a thumb), 
 - `hook`: the opening line or what is on screen in the first two seconds.
 - `context`: what a stranger needs to know, and where inside the clip they get it.
 - `caption`: one or two lines for the post in the speaker's spirit, plus a few relevant hashtags.
-- `settings.credit`: `null` uses `source.json` (written from the link). `"own"` when the video is the person's own, which removes the credit. Or `{"name": "", "url": "", "text": ""}` for a local file of someone else's video, where `text` is the short form shown on screen.
 - `settings.zoom`: leave it out. Clips keep a steady framing; set `true` only when the person asks for punch-in zooms on the face.
 - Optional per clip: `skip_captions`, `game_x`, `game_zoom`, and `"layout": "talk"` or `"stream"` to override what was detected for that clip.
 
@@ -219,12 +217,12 @@ Talk mode: finds camera cuts and faces, frames whoever is talking, smooths the c
 ## 10. Edit
 
 `$PY $SKILL/scripts/edit.py <work> [--color "#RRGGBB"]` (`--only 3` redoes one clip).
-Captions two or three words at a time on the word timings, key words in the accent colour, inside the safe zone; steady framing, with no zooming in and out on the person; loudness at -14 LUFS; the creator's short link in the top-left corner. Writes `clips/clip-NN.mp4` (1080x1920) and `clips/clip-NN.txt` (title, post text, and a credit line with the creator's link).
+Captions two or three words at a time on the word timings, key words in the accent colour, inside the safe zone; steady framing, with no zooming in and out on the person; loudness at -14 LUFS. Nothing else is drawn on the picture: no watermark, no channel name. Writes `clips/clip-NN.mp4` (1080x1920) and `clips/clip-NN.txt` (title and post text).
 
 ## 11. Check: frames, not code
 
 `$PY $SKILL/scripts/check.py <work>`
-For each clip it writes a contact sheet (one frame per second, red lines for the areas the apps cover, a dotted line for the stream divider) and checks: a face in the frame, captions in the safe zone and off the face, captions in time with the speech (it listens to the finished clip again and compares; more than a quarter of a second off fails), length in range, audio near -14 LUFS, the credit on screen and in the post text, no clip crossing a join.
+For each clip it writes a contact sheet (one frame per second, red lines for the areas the apps cover, a dotted line for the stream divider) and checks: a face in the frame, captions in the safe zone and off the face, captions in time with the speech (it listens to the finished clip again and compares; more than a quarter of a second off fails), length in range, audio near -14 LUFS, no clip crossing a join.
 
 Then **open every sheet and look at it.** The face check can fail on a dark or small facecam that looks fine, and pass on a framing that looks wrong: the sheet decides, and you say which it was. A clip whose captions run early or late is not fixed by hand: run transcribe.py again, then cut and edit that clip again, and check again. If it still fails, say so in the hand-over with the number of seconds; never hand over a clip with captions out of time as if it were fine. Look for a face cut off, the wrong person framed, captions on a face, a start or end mid-word, a dead stretch, chat or alerts in the gameplay panel, a cam panel showing more game than people. Fix it (move `start`/`end`, set `game_x`, rerun cut and edit with `--only`), then check again.
 

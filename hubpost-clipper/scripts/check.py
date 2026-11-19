@@ -123,20 +123,6 @@ def check_clip(work, index, settings, detector, sync=True):
         if abs(loud - (-14)) > 2:
             problems.append(f"loudness {loud:.1f} LUFS is not near -14")
 
-    if settings.get("credit") != "own":
-        text_path = os.path.join(clips_dir, f"{name}.txt")
-        post = open(text_path).read() if os.path.exists(text_path) else ""
-        source_path = os.path.join(work, "source.json")
-        credit = settings.get("credit") if isinstance(settings.get("credit"), dict) else (
-            load_json(source_path) if os.path.exists(source_path) else None)
-        if not credit or not credit.get("url"):
-            problems.append("no credit: say whose video this is (settings.credit), or \"own\" if it is the person's")
-        else:
-            if not layout.get("credit"):
-                problems.append("the creator's name is not on screen")
-            if credit["url"] not in post:
-                problems.append("the post text does not link the creator")
-            notes.append(f"credit {credit['text']}")
     meta_path = os.path.join(work, "meta.json")
     cut_path = os.path.join(work, "cuts", f"{name}.json")
     if os.path.exists(meta_path) and os.path.exists(cut_path):

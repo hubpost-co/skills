@@ -5,7 +5,7 @@ import os
 
 PATH = os.path.join(os.path.expanduser("~"), ".config", "clipper", "preferences.json")
 KEYS = {"count": int, "min_seconds": int, "max_seconds": int, "color": str, "sfx": bool, "zoom": bool, "language": str,
-        "output": str, "after": str, "credit": str, "moments": str}
+        "output": str, "after": str, "moments": str}
 
 
 def load():
