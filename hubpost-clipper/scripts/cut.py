@@ -338,7 +338,9 @@ def main():
             continue
         started = time.time()
         here = layout
-        for part in layout.get("windows") or []:
+        parts = layout.get("windows") or []
+        own = [p for p in parts if p.get("clip") == index + 1]
+        for part in own or [p for p in parts if "clip" not in p]:
             if part["at"] <= clip["start"] < part["at"] + part["length"]:
                 here = part
         stream = clip.get("layout", here.get("mode")) == "stream" and "cam_crop" in here

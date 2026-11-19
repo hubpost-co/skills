@@ -18,6 +18,8 @@ import chat as chatlib
 from common import load_json, save_json, source_info, ytdlp_command
 from moments import find_events, loudness_curve
 from windows import clock
+import reading
+from transcribe import transcribe
 
 PRE, POST = 50, 35
 MAX_WINDOW = 200
@@ -67,6 +69,9 @@ def main():
     ap.add_argument("--top", type=int, default=None, help="how many stretches to keep")
     ap.add_argument("--range", default=None, help="only look at part of the stream, like 1:00:00-3:00:00")
     ap.add_argument("--no-chat", action="store_true")
+    ap.add_argument("--no-transcript", action="store_true",
+                    help="skip reading what was said (faster; only sound and chat choose the stretches)")
+    ap.add_argument("--language", default=None)
     a = ap.parse_args()
     started = time.time()
     work = a.workdir
@@ -101,6 +106,15 @@ def main():
     sound = [{"t": round(e["t"] + lo, 1), "kind": "sound-" + e["kind"], "db": round(e["db"], 1),
               "voice": round(e["voice"], 2), "raw": min(e["db"], 40.0) * (0.4 + 0.6 * e["voice"])} for e in events]
     sound = strongest(sound, int(max(12, (hi - lo) / 3600 * SOUND_PER_HOUR)), SOUND_SPACING)
+    words = []
+    if not a.no_transcript:
+        print(f"transcribing all {clock(hi - lo)} of it, so the spoken moments can be read "
+              f"(roughly a tenth of its length; --no-transcript skips this)")
+        sys.stdout.flush()
+        words, _ = transcribe(audio, language=a.language, beam=1)
+        for w in words:
+            w["start"], w["end"] = round(w["start"] + lo, 3), round(w["end"] + lo, 3)
+        save_json(os.path.join(work, "scout-transcript.json"), words)
     os.remove(audio)
 
     chat_peaks, chat_note = [], "no chat replay for this site"
@@ -139,6 +153,14 @@ def main():
     if replayed:
         rank_scores(replayed, lambda h: h["value"])
         seeds += [dict(h, span=(h["t"] - PRE, h["t"] + POST)) for h in replayed]
+
+    if words:
+        marks = [(s["t"], f"LOUD +{s['db']} dB" + (", mostly not a voice" if s["voice"] < 0.35 else "")) for s in sound]
+        marks += [(c["t"], f"CHAT: {c['reacting']} of {c['people']} people reacting") for c in chat_peaks]
+        marks += [(h["t"], "MOST REPLAYED") for h in replayed]
+        reading.write(os.path.join(work, "scout-reading.txt"), words, marks, hi, intro=[
+            f"{info.get('title', '')} | {credit['name']} | {clock(duration)}", ""],
+            start=lo, positions="positions in the stream: the numbers windows.json takes")
 
     seeds.sort(key=lambda s: s["span"][0])
     windows = []
@@ -193,6 +215,8 @@ def main():
     with open(os.path.join(work, "scout.txt"), "w") as f:
         f.write("\n".join(lines) + "\n")
     print(f"{len(windows)} stretches found, {len(chosen)} kept, {time.time() - started:.0f} s")
+    if words:
+        print("wrote scout-reading.txt: read ALL of it and add the spoken moments that no signal marked to windows.json")
     print("wrote scout.txt (read it), scout.json and windows.json (edit it to change what gets downloaded)")
 
 

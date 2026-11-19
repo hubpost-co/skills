@@ -78,6 +78,11 @@ def check_clip(work, index, settings, detector):
     layout_path = os.path.join(clips_dir, f"{name}.layout.json")
     layout = load_json(layout_path) if os.path.exists(layout_path) else {}
 
+    clip = load_clips(work)["clips"][index]
+    if len((clip.get("context") or "").split()) < 6:
+        problems.append("no `context`: run look.py on this clip, then write what a stranger needs to know "
+                        "and where inside the clip they get it")
+
     duration = probe_duration(path)
     low, high = settings.get("min_seconds", 20), settings.get("max_seconds", 60)
     if duration < low - 1.5 or duration > high + 1.5:

@@ -23,20 +23,12 @@ def sentences(words):
     return out
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("workdir")
-    ap.add_argument("--model", default="small")
-    ap.add_argument("--language", default=None)
-    a = ap.parse_args()
-
+def transcribe(source, model="small", language=None, beam=5):
     from faster_whisper import WhisperModel
 
-    source = os.path.join(a.workdir, "source.mp4")
-    started = time.time()
-    model = WhisperModel(a.model, device="cpu", compute_type="int8")
-    segments, info = model.transcribe(
-        source, language=a.language, word_timestamps=True, vad_filter=True, beam_size=5)
+    engine = WhisperModel(model, device="cpu", compute_type="int8")
+    segments, info = engine.transcribe(
+        source, language=language, word_timestamps=True, vad_filter=True, beam_size=beam)
     words = []
     for seg in segments:
         for w in seg.words or []:
@@ -45,6 +37,19 @@ def main():
                 words.append({"text": text, "start": round(w.start, 3), "end": round(w.end, 3)})
         print(f"  transcribed to {stamp(seg.end)}", end="\r", flush=True)
     print()
+    return words, info.language
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("workdir")
+    ap.add_argument("--model", default="small")
+    ap.add_argument("--language", default=None)
+    a = ap.parse_args()
+
+    source = os.path.join(a.workdir, "source.mp4")
+    started = time.time()
+    words, language = transcribe(source, a.model, a.language)
 
     with open(os.path.join(a.workdir, "transcript.json"), "w") as f:
         json.dump(words, f, ensure_ascii=False)
@@ -53,9 +58,9 @@ def main():
         text = " ".join(w["text"] for w in group)
         lines.append(f"[{stamp(group[0]['start'])} - {stamp(group[-1]['end'])}] {text}")
     with open(os.path.join(a.workdir, "transcript.txt"), "w") as f:
-        f.write(f"language: {info.language}\n\n")
+        f.write(f"language: {language}\n\n")
         f.write("\n".join(lines) + "\n")
-    print(f"{len(words)} words, language {info.language}, {time.time() - started:.0f} s")
+    print(f"{len(words)} words, language {language}, {time.time() - started:.0f} s")
     print("wrote transcript.json and transcript.txt")
 
 

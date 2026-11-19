@@ -70,6 +70,32 @@ def save_moment(moment, seg_dir, out_dir, number, started):
     return name
 
 
+def join_all(work, seg_dir, credit, url, peaks):
+    """Joins every recorded piece into <work>/source.mp4, with the chat spikes on its clock."""
+    from fetch import probe
+    parts = sorted(glob.glob(os.path.join(seg_dir, "*.ts")), key=segment_time)
+    if not parts:
+        return None
+    listing = os.path.join(seg_dir, "all.txt")
+    with open(listing, "w") as f:
+        for p in parts:
+            f.write("file '" + os.path.abspath(p).replace("'", "'\\''") + "'\n")
+    target = os.path.join(work, "source.mp4")
+    done = subprocess.run(["ffmpeg", "-v", "error", "-y", "-nostdin", "-f", "concat", "-safe", "0", "-i", listing,
+                           "-c", "copy", "-bsf:a", "aac_adtstoasc", "-movflags", "+faststart", target])
+    os.remove(listing)
+    if done.returncode != 0 or not os.path.exists(target):
+        return None
+    info = probe(target)
+    info["input"] = url
+    save_json(os.path.join(work, "meta.json"), info)
+    save_json(os.path.join(work, "source.json"), credit)
+    first = segment_time(parts[0])
+    save_json(os.path.join(work, "chat_peaks.json"),
+              [dict(p, t=round(p["t"] - first, 1)) for p in peaks if 0 <= p["t"] - first < info["duration"]])
+    return target
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("channel", help="a Twitch channel name, or a link to a live stream")
@@ -80,6 +106,9 @@ def main():
     ap.add_argument("--quick", action="store_true", help="30 s moments: 20 s before the spike, 10 s after")
     ap.add_argument("--hours", type=float, default=6.0)
     ap.add_argument("--keep-minutes", type=int, default=12, help="how much recording stays on disk")
+    ap.add_argument("--all", action="store_true",
+                    help="keep the whole recording and join it into <work>/source.mp4 at the end, so the "
+                         "moments are chosen by reading everything that was said (small channel, quiet chat)")
     ap.add_argument("--min-people", type=int, default=None)
     ap.add_argument("--sound", choices=["auto", "on", "off"], default="auto",
                     help="auto: sound spikes count when there is no chat to read or the chat is slow")
@@ -139,6 +168,7 @@ def main():
     sys.stdout.flush()
 
     open_moment, saved, heard, last_end = None, 0, set(), 0.0
+    all_peaks = []
     recent_hops, last_sound = [], 0.0
     status_path = os.path.join(live, "status.json")
     try:
@@ -148,6 +178,7 @@ def main():
             ended = stream.poll() is not None or cutter.poll() is not None
             spikes = []
             for peak in detector.tick(now) if reader else []:
+                all_peaks.append(peak)
                 spikes.append({"t": peak["t"], "kind": "chat", "chat": [peak],
                                "note": f"chat: {peak['reacting']} of {peak['people']} people reacting (x{peak['ratio']})"})
             segments = sorted(glob.glob(os.path.join(seg_dir, "*.ts")))
@@ -196,7 +227,7 @@ def main():
             keep_from = now - a.keep_minutes * 60
             if open_moment:
                 keep_from = min(keep_from, open_moment["start"] - SEGMENT)
-            for seg in closed:
+            for seg in [] if a.all else closed:
                 if segment_time(seg) + SEGMENT < keep_from:
                     os.remove(seg)
                     heard.discard(seg)
@@ -212,8 +243,8 @@ def main():
             if os.path.exists(stop_file):
                 print("stop requested")
                 break
-            if shutil.disk_usage(a.workdir).free < 1e9:
-                print("stopping: less than 1 GB of free disk left")
+            if shutil.disk_usage(a.workdir).free < (2e9 if a.all else 1e9):
+                print("stopping: the disk is almost full")
                 break
             if now - started >= a.hours * 3600:
                 print(f"reached the {a.hours} hour limit")
@@ -230,8 +261,13 @@ def main():
         if open_moment:
             name = save_moment(open_moment, seg_dir, out_dir, saved + 1, started)
             saved += bool(name)
+        whole = None
+        if a.all:
+            whole = join_all(a.workdir, seg_dir, credit, url, all_peaks)
         for seg in glob.glob(os.path.join(seg_dir, "*.ts")):
             os.remove(seg)
+        if whole:
+            print(f"the whole recording is in {whole}: go on with transcribe.py on {a.workdir}")
         status = {"url": url, "credit": credit, "running": False, "watched": clock(time.time() - started),
                   "moments": saved, "chat_messages": reader.count if reader else 0}
         save_json(status_path, status)

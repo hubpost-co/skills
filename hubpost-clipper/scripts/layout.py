@@ -16,6 +16,7 @@ MAX_CAM_FACE = 0.3
 MAX_CAM_AREA = 0.4
 MIN_GAME_ACTIVE = 0.45
 EDGE_SNAP = 0.08
+AROUND = 40.0
 STATIC_EDGE = 0.45
 HEADROOM = 0.27
 OVERLAY_MIN = 0.05
@@ -324,6 +325,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("workdir")
     ap.add_argument("--mode", choices=["auto", "stream", "talk"], default="auto")
+    ap.add_argument("--whole", action="store_true", help="one layout for the whole video even when clips are chosen")
     a = ap.parse_args()
     started = time.time()
     work = a.workdir
@@ -336,6 +338,29 @@ def main():
         print("mode: talk (chosen)")
         return
     windows = meta.get("windows") or []
+    clips_path = os.path.join(work, "clips.json")
+    if os.path.exists(clips_path) and not a.whole:
+        # The scene around each chosen clip decides its layout: a stream changes scene all the time.
+        data = load_json(clips_path)
+        clips = data["clips"] if isinstance(data, dict) else data
+        layout = {"mode": "talk", "source_size": [src_w, src_h], "windows": [],
+                  "reason": "one layout per clip, from the scene around it"}
+        for n, clip in enumerate(clips, 1):
+            lo, hi = max(0.0, clip["start"] - AROUND), min(meta["duration"], clip["end"] + AROUND)
+            for w in windows:
+                if w["at"] <= clip["start"] < w["at"] + w["length"]:
+                    lo, hi = max(lo, w["at"]), min(hi, w["at"] + w["length"])
+            part, part_mask, part_shot = analyse(source, src_w, src_h, lo, hi - lo, a.mode, 30)
+            part.update(at=lo, length=hi - lo, clip=n)
+            layout["windows"].append(part)
+            print(f"clip {n} ({clip['start']:.0f}-{clip['end']:.0f} s): {part['mode']} ({part['reason']})")
+            if part["mode"] == "stream":
+                preview(source, part_shot, part, os.path.join(work, f"layout-preview-{n:02d}.jpg"), part_mask)
+                if not part["game_avoids_cam"]:
+                    print(f"  warning: the lower panel could not avoid the cam box; look at layout-preview-{n:02d}.jpg")
+        save_json(out_path, layout)
+        print(f"wrote layout.json and a layout-preview-NN.jpg per stacked clip, {time.time() - started:.0f} s")
+        return
     layout, mask, shot = analyse(source, src_w, src_h, 0.0, meta["duration"], a.mode)
     reason = layout["reason"]
     if len(windows) > 1:

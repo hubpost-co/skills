@@ -2,7 +2,7 @@
 version: 0.2.0
 name: hubpost-clipper
 description: |
-  Turns a livestream (while it is live, or its VOD), a podcast or any long video into finished vertical 9:16 clips on the person's own computer. Watches a live stream and saves each moment as it happens, or scans a VOD of many hours without downloading it whole; finds moments from chat spikes, sound and the transcript; the agent picks the ones that stand alone; stacks facecam over gameplay or reframes on the speaker; adds word-timed captions, punch-ins, levelled audio and the creator's credit; then checks every clip from real frames. Use when: "clip this stream", "clip this live", "watch this channel and clip it", "clip this VOD", "make shorts from this video", "turn this podcast into clips", "Twitch clips", "gameplay clips", "clipper", or "set this up for me" right after installing. NOT for writing scripts, editing a video the person shot as one finished piece, or publishing the clips; it hands over files; chain hubpost-publish to schedule them.
+  Turns a livestream (while it is live, its VOD, or a recording of it already on the computer), a podcast or any long video into finished vertical 9:16 clips on the person's own computer. Watches a live stream as it happens, scans a VOD of many hours without downloading it whole, or takes an mp4 with no chat at all; Claude reads everything that was said, uses chat and sound as hints, checks the scene around each moment and picks the ones a stranger understands; stacks facecam over gameplay or reframes on the speaker; adds word-timed captions, punch-ins, levelled audio and the creator's credit; then checks every clip from real frames. Use when: "clip this stream", "clip this live", "watch this channel and clip it", "clip this VOD", "clip this recording", "I have the mp4 of my stream", "make shorts from this video", "turn this podcast into clips", "Twitch clips", "gameplay clips", "clipper", or "set this up for me" right after installing. NOT for writing scripts, editing a video the person shot as one finished piece, or publishing the clips; it hands over files.
 argument-hint: "[channel, live link, VOD link or file] [--quick] [--range h:mm:ss-h:mm:ss]"
 allowed-tools: Bash
 ---
@@ -11,7 +11,7 @@ allowed-tools: Bash
 
 A stream or a long video in, edited vertical clips out. Everything runs on the person's computer.
 
-Stages: **preferences -> doctor -> source -> signals -> transcribe -> layout -> pick -> cut -> edit -> check -> hand-over**.
+Stages: **preferences -> doctor -> source -> transcribe -> signals -> pick -> layout -> cut -> edit -> check -> hand-over**.
 
 - `$SKILL` is this skill's folder. `$PY` is the Python that doctor prints on its `PYTHON=` line; use it for every script.
 - Make one work folder per stream or video, next to where the person is working. Never work inside `$SKILL`. `<work>` below is that folder.
@@ -52,10 +52,12 @@ Run `bash $SKILL/scripts/doctor.sh`.
 Before the first run of each kind, give the two or three lines below that apply to what they asked for. Plain sentences, no warnings block, no repeating it on later runs.
 
 - **Any source**: this runs in an agent that can run commands on their computer; a chat window in a browser cannot download or cut video. It needs ffmpeg, about 2 GB of disk for the tools, and room for the video (about 1 GB per 7 minutes of 1080p kept). If doctor reports little free disk, tell them before starting, not after it fails.
-- **Live**: the computer has to stay awake and online for as long as they want it watched. A moment is saved a little after it happens, never before. A slow chat gives few chat spikes; the sound covers for it.
+- **Live**: the computer has to stay awake and online for as long as they want it watched. A moment is saved a little after it happens, never before. On a small channel the chat is too quiet to point at moments; the whole watch is recorded and read instead (`--all`), which takes more disk.
+- **A recording or a stream with no chat**: nothing is lost that matters. Chat only points at where to look; the choice is made from what was said and shown.
 - **Twitch**: live chat and chat replay are read the way a logged-out viewer's browser reads them. Twitch can change that without notice; when it does, the sound still works. VODs expire, and subscriber-only VODs cannot be read.
 - **Someone else's stream**: a credit and a link go on every clip, and that is still not permission. They need the creator's clipping programme, a campaign brief or a written OK, and reused footage may not be monetised by the platforms.
 - **Captions**: in a stream the game's voices and the streamer's are mixed; a misheard word is fixed in the transcript before the edit.
+- **An avatar instead of a camera**: the facecam is found by its face, and a drawn or 3D avatar has none, so those clips use the full frame over a soft background instead of the stacked layout.
 
 ## 4. Source: three ways in
 
@@ -69,22 +71,24 @@ Before the first run of each kind, give the two or three lines below that apply 
 - `<work>/live/status.json` says whether it is still running, how many moments it has, and whether the chat is connected. To stop it, create an empty file `<work>/live/STOP`.
 - Chat is read for Twitch. For other sites the watcher uses sound only; say so.
 
-To turn saved moments into clips, at any time (the watch keeps running): `$PY $SKILL/scripts/windows.py <work> --live`. It gathers the moments not used yet into a new folder `<work>/batch-NN/`. That folder is the work folder for steps 5-10.
+To turn saved moments into clips, at any time (the watch keeps running): `$PY $SKILL/scripts/windows.py <work> --live`. It gathers the moments not used yet into a new folder `<work>/batch-NN/`. That folder is the work folder for steps 5-11.
+
+**Small channel, quiet chat, or a talk-heavy stream**: add `--all`. Nothing is thrown away; when the watch ends the whole recording is joined into `<work>/source.mp4` (with the chat spikes it did hear) and `<work>` itself is the work folder for steps 5-11, so the moments are chosen by reading everything that was said. It needs the disk for the whole watch (about 1 GB per 7 minutes of 1080p), so set `--hours`.
 
 ### B. A VOD (minutes or many hours)
 
-Under about 30 minutes: `$PY $SKILL/scripts/fetch.py "<link>" <work>` and go to step 5.
+Under about 30 minutes: `$PY $SKILL/scripts/fetch.py "<link>" <work>` and go to step 5. A stream with no chat replay loses nothing by this.
 
 Longer: scout first, download only what is worth it.
 
-1. `$PY $SKILL/scripts/scout.py "<link>" <work>` (add `--range 1:00:00-3:00:00` to look at one part). It downloads the audio only, reads the chat replay when the site has one (Twitch, YouTube), measures both across the whole stream, adds the site's "most replayed" curve when present, and writes `scout.txt`, `scout.json` and `windows.json`.
-2. Read `scout.txt`. Each stretch shows which signals agree. Stretches where chat and sound agree are the strongest; sound alone in a game is often the game.
-3. `windows.json` holds the stretches that will be downloaded. Edit it if you disagree with the ranking (add a stretch, drop one, widen one whose setup starts earlier). Keep about twice as many stretches as clips wanted.
+1. `$PY $SKILL/scripts/scout.py "<link>" <work>` (add `--range 1:00:00-3:00:00` to look at one part). It downloads the audio only, reads the chat replay when the site has one (Twitch, YouTube), measures both across the whole stream, adds the site's "most replayed" curve when present, transcribes the whole audio (roughly a tenth of the stream's length; `--no-transcript` skips it, `--language en` skips detection), and writes `scout.txt`, `scout-reading.txt`, `scout.json` and `windows.json`.
+2. Read ALL of `scout-reading.txt`: everything that was said across the stream, with the sound and chat marks in place. Note the spoken moments worth a clip the same way as in step 7. Then read `scout.txt`, where each stretch shows which signals agree; sound alone in a game is often the game.
+3. `windows.json` holds the stretches that will be downloaded, chosen from the signals alone. Add a stretch for every spoken moment you noted that is not already covered, from about a minute and a half before it starts to half a minute after it ends, so the scene can be checked before the cut. Drop stretches whose signal turned out to be nothing, widen one whose setup starts earlier. Keep about twice as many stretches as clips wanted.
 4. `$PY $SKILL/scripts/windows.py <work>` downloads only those stretches and joins them into `source.mp4`. `meta.json` keeps where each stretch came from and where the joins are. It refuses to start when the disk is too full for what was asked; keep fewer stretches then.
 
-### C. A file on the computer
+### C. A recording already on the computer
 
-`$PY $SKILL/scripts/fetch.py "<path>" <work>`. The file is linked or copied, never changed. There is no `source.json` for a local file: ask whose video it is and put the answer in `settings.credit` (step 7).
+`$PY $SKILL/scripts/fetch.py "<path>" <work>`, whatever its length. The file is linked or copied, never changed. A recording has no chat, and that is fine: the moments come from reading what was said, with the sound as a hint. There is no `source.json` for a local file: ask whose video it is and put the answer in `settings.credit` (step 7).
 
 ## 5. Transcribe
 
@@ -92,49 +96,71 @@ Longer: scout first, download only what is worth it.
 Writes `transcript.json` (every word with start and end) and `transcript.txt` (one timestamped sentence per line).
 Fix clearly misheard names in `transcript.json` now, so the captions spell them right. In a stream, lines nobody in the room would say are usually the game or the video being watched.
 
-## 6. Layout and signals
+## 6. Signals and the reading page
 
-`$PY $SKILL/scripts/layout.py <work>` (`--mode stream` or `--mode talk` to force it).
-It samples frames, looks for a face that stays in one small part of the frame while the rest keeps changing (a facecam over gameplay), and writes `layout.json`. Two modes:
+`$PY $SKILL/scripts/moments.py <work>` writes three files:
 
-- **talk**: 9:16 crop on whoever is speaking, a new framing at every camera cut.
-- **stream**: facecam on top, a thin divider, gameplay below, captions just under the divider.
+- `reading.txt`: everything that was said, in order, in paragraphs with their seconds, with marks where the sound jumped, went quiet, or the chat reacted, and a note wherever nobody talks for a while. This is what you choose from.
+- `candidates.txt` and `candidates.json`: the sound, chat and reaction-word peaks alone, each with a suggested setup start, the peak, where the reaction settles and an end after a breath.
 
-A stream changes scene (gameplay, just chatting, watching a video), so when the source is made of several stretches each stretch gets its own layout, and each clip uses the layout of the stretch it comes from.
-
-In stream mode it also writes `layout-preview.jpg`, plus `layout-preview-NN.jpg` for each stretch. **Open the ones your clips come from and look.** If the gameplay crop shows chat or cuts the action, set `game_x` (0 left to 1 right) and `game_zoom` (1.0-1.4) in `settings` or on one clip.
-
-`$PY $SKILL/scripts/moments.py <work>`
-Finds sharp jumps in loudness, sudden silences after noise and bursts of reaction words, joins them with the chat spikes carried over from the scout or the watch, and writes `candidates.txt` and `candidates.json`. Each candidate has a suggested setup start, the peak, where the reaction settles and an end after a breath. A candidate marked `CHAT` had the audience reacting too. Candidates never cross a join between two stretches.
-
-These are seeds. A loud game moment with little voice and no chat is usually the game, not the streamer.
+The marks are hints about where people reacted. They are not the list of moments. A loud mark with little voice and no chat is usually the game.
 
 ## 7. Pick the moments (the part that decides the quality)
 
-Read ALL of `transcript.txt`, then `candidates.txt`. For the strongest candidates look at the picture: one frame every 2-3 s around the peak (an `ffmpeg` tile), so you know what is being reacted to.
+The choice is yours, made by reading, not by ranking peaks. Peaks alone give few clips and miss the best kind: someone saying something worth hearing in a calm voice. A small channel with an empty chat has just as many of those as a big one.
+
+### Read everything first
+
+Read ALL of `reading.txt`, start to end, before looking at `candidates.txt`. For a recording of several hours, read it in consecutive parts and keep a running list; do not sample it. While reading, note every stretch that could work for someone scrolling short videos, marked or not:
+
+- a story with a beginning and an end;
+- a strong opinion or a claim people would argue with;
+- a confession, an admission, or a moment of real feeling;
+- a useful or surprising piece of knowledge, said plainly;
+- a joke, a comeback or an exchange that lands;
+- a reaction to something that is visible or audible in the clip itself;
+- a turn: what the speaker expected against what happened.
+
+Then read `candidates.txt` and add the peaks you did not already note. Where a mark and a spoken moment fall together, that is a strong candidate. Collect two to three times more candidates than the person asked for.
+
+### Understand the scene before you cut
+
+For every candidate you intend to keep, run `$PY $SKILL/scripts/look.py <work> <start> <end>`. It prints what was said in the minute and a half before the start, what is said inside, and what comes right after, and writes one image of the whole frame every few seconds from before the start to after the end. **Open the image.** A cut made from the words alone is a guess.
+
+From that, answer in one sentence each:
+
+1. **What is going on?** Who is talking, to whom, about what, and what is on screen (which game, video, page or person). If you cannot say, you do not understand the scene yet: look further back.
+2. **What does a stranger need to know to get it?** The subject, who "he" or "that" refers to, the question being answered, the thing being reacted to, the rule of the game being played.
+3. **Where does the clip give them that?** Said inside the clip, or visible on screen inside the clip. Something said or shown only before the start does not count.
+
+When the answer to 3 is "nowhere", move the start back to where the subject is introduced, and if the clip then runs too long, drop it. Never fix a missing subject with the title or the post text: most viewers see neither before deciding to stay.
+
+Write the answer to 2 and 3 in the clip's `context` field. check.py refuses a clip without it.
 
 ### What a clip must be
 
-1. **A stranger gets it.** Someone scrolling, who never saw the stream, understands it with no context. Reject a moment that leans on something said earlier, a pronoun with no clear subject, or an answer whose question is missing.
-2. **It opens on a hook.** The first two seconds give a reason to stay: a claim, a number, the start of a story, a question, or something visibly happening on screen. The opening names or shows the topic.
-3. **It ends on the payoff.** The answer, the punchline, the turn, the reaction landing. Never mid-thought and never right before the point. If the payoff runs past the length limit, start later instead of cutting the end.
+1. **A stranger gets it.** Someone scrolling, who never saw the stream, understands it from the clip alone.
+2. **It opens on a hook.** The first two seconds give a reason to stay: a claim, a number, the start of a story, a question, or something visibly happening on screen. The opening names or shows the subject.
+3. **It ends on the payoff.** The answer, the punchline, the turn, the reaction landing. Never mid-thought and never right before the point. If the payoff runs past the length limit, start later instead of cutting the end, as long as the subject is still inside.
 4. **It is as short as the idea allows**, inside the person's range.
 5. **It starts on the first word that matters.** Trim the warm-up words before the hook.
-6. **No overlap** between clips, spread across the stream. No ads, sponsor reads, intros, outros or asks to subscribe.
+6. **It is worth a stranger's time.** Interesting only to people who already follow the channel is not enough: inside jokes, greetings to viewers by name, reading donations, stream housekeeping, waiting.
+7. **No overlap** between clips, spread across the recording. No ads, sponsor reads, intros, outros or asks to subscribe.
 
-### Streams: build each clip around a reaction
+### Reactions
 
-- Start on the setup: what makes the reaction make sense, usually a few seconds before the peak. The viewer must see what is being reacted to.
+- Start on the setup: what makes the reaction make sense, usually a few seconds before the peak. The viewer must see or hear what is being reacted to.
 - Keep the reaction whole and let it breathe for two or three seconds. Never cut on the peak itself.
-- Grow a seed into a full clip only when the moments around it belong to the same story. Two weak peaks with nothing between them are not a clip.
-- A chat spike says the audience cared, not that the moment stands alone. It still has to pass the stranger test.
-- Never let a clip cross a join (`joins` in `meta.json`).
-- Put the peak times in the clip as `peaks`; the edit punches in on the facecam there.
-- If the game's own dialogue would be captioned, list those stretches in `skip_captions` so only the room is captioned.
+- Grow a peak into a full clip only when the moments around it belong to the same story. Two weak peaks with nothing between them are not a clip.
+- A chat spike says the audience cared, not that the moment stands alone.
+- Put the peak times in the clip as `peaks`; the edit punches in on the face there.
+- If the game's or a watched video's dialogue would be captioned, list those stretches in `skip_captions` so only the room is captioned. When the watched video's words are what the clip is about, keep them.
+
+Never let a clip cross a join (`joins` in `meta.json`, shown as a line in `reading.txt`).
 
 ### Score and rank
 
-Find two to three times more candidates than needed. Score each 1-10 on `hook` (would the first two seconds stop a thumb), `stands_alone` (stranger test with no help), `payoff` (ends on something worth the wait) and `share` (would someone send or save it). Keep the top N by total. Close call: the stronger hook wins. Drop anything under 6 on `stands_alone`, whatever else it scores. If fewer than N are good, deliver fewer and say so; a weak clip costs the person more than a missing one.
+Score each candidate 1-10 on `hook` (would the first two seconds stop a thumb), `stands_alone` (stranger test with no help), `payoff` (ends on something worth the wait) and `share` (would someone send or save it). Keep the top N by total. Close call: the stronger hook wins. Drop anything under 6 on `stands_alone`, whatever else it scores. If fewer than N are good, deliver fewer and say so; a weak clip costs the person more than a missing one.
 
 ### Write `<work>/clips.json`
 
@@ -149,6 +175,7 @@ Find two to three times more candidates than needed. Score each 1-10 on `hook` (
       "end": 0.0,
       "title": "",
       "hook": "",
+      "context": "",
       "caption": "",
       "scores": {"hook": 0, "stands_alone": 0, "payoff": 0, "share": 0},
       "total": 0
@@ -159,23 +186,34 @@ Find two to three times more candidates than needed. Score each 1-10 on `hook` (
 
 - `title`: under 60 characters, what the clip delivers in plain words. Nothing the clip does not pay off.
 - `hook`: the opening line or what is on screen in the first two seconds.
+- `context`: what a stranger needs to know, and where inside the clip they get it.
 - `caption`: one or two lines for the post in the speaker's spirit, plus a few relevant hashtags.
 - `settings.credit`: `null` uses `source.json` (written from the link). `"own"` when the video is the person's own, which removes the credit. Or `{"name": "", "url": "", "text": ""}` for a local file of someone else's video, where `text` is the short form shown on screen.
-- Optional per clip: `peaks`, `skip_captions`, `game_x`, `game_zoom`, and `"layout": "talk"` or `"stream"` to override what was detected for that clip's stretch.
+- Optional per clip: `peaks`, `skip_captions`, `game_x`, `game_zoom`, and `"layout": "talk"` or `"stream"` to override what was detected for that clip.
 
 Order the clips best first. Show the person a short table (number, time in the stream, title, total) and go straight on unless they object.
 
-## 8. Cut
+## 8. Layout
+
+`$PY $SKILL/scripts/layout.py <work>` (`--mode stream` or `--mode talk` to force it), after `clips.json` exists.
+For each clip it samples frames from the scene around it and looks for a face that stays in one small part of the frame while the rest keeps changing (a facecam over a game, a video or a page). It writes `layout.json` with one layout per clip, because a stream changes scene all the time. Two modes:
+
+- **talk**: 9:16 crop on whoever is speaking, a new framing at every camera cut.
+- **stream**: facecam on top, a thin divider, the rest of the screen below, captions just under the divider.
+
+For every stacked clip it writes `layout-preview-NN.jpg`. **Open each one and look.** If the lower panel shows chat, cuts the action or misses the thing the clip is about, set `game_x` (0 left to 1 right) and `game_zoom` (1.0-1.4) on that clip. Run it again after changing a clip's `start` or `end` by more than a few seconds.
+
+## 9. Cut
 
 `$PY $SKILL/scripts/cut.py <work>` (`--only 3` redoes one clip).
 Talk mode: finds camera cuts and faces, frames whoever is talking, smooths the crop, and uses the full frame over a blurred copy when there is no big face. Stream mode: builds the stacked layout for every frame and finds the face inside the cam panel for the zooms.
 
-## 9. Edit
+## 10. Edit
 
 `$PY $SKILL/scripts/edit.py <work> [--color "#RRGGBB"] [--no-sfx]` (`--only 3` redoes one clip).
 Captions two or three words at a time on the word timings, key words in the accent colour, inside the safe zone; punch-in zooms that never crop the face; a soft whoosh on the strong ones; loudness at -14 LUFS; the creator's short link in the top-left corner. Writes `clips/clip-NN.mp4` (1080x1920) and `clips/clip-NN.txt` (title, post text, and a credit line with the creator's link).
 
-## 10. Check: frames, not code
+## 11. Check: frames, not code
 
 `$PY $SKILL/scripts/check.py <work>`
 For each clip it writes a contact sheet (one frame per second, red lines for the areas the apps cover, a dotted line for the stream divider) and checks: a face in the frame, captions in the safe zone and off the face, length in range, audio near -14 LUFS, the credit on screen and in the post text, no clip crossing a join.
@@ -184,7 +222,7 @@ Then **open every sheet and look at it.** The face check can fail on a dark or s
 
 Never say a check passed unless you ran it and read its output in this session. Anything still weak goes in the hand-over, named.
 
-## 11. Hand-over
+## 12. Hand-over
 
 For each clip: the full path, its length, the title, the post text, and one line on why it works. Then the folder. Say plainly what you are less sure about.
 

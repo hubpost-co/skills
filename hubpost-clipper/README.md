@@ -6,8 +6,9 @@ A free agent skill that turns a livestream, its VOD, a podcast or any long video
 
 - **Watches a live stream** and saves each moment as it happens: it records in short pieces, keeps only the last minutes on disk, and when the chat or the sound spikes it keeps the stretch around it.
 - **Scans a VOD of many hours without downloading it whole**: it pulls only the audio and the chat replay, finds where the moments are, and downloads just those stretches.
-- **Finds moments three ways**: chat spikes (how many different people reacted, against what is normal for that chat), sound (screams, laughs, sudden silence) and the transcript.
-- **Your agent picks the clips**: each one has to make sense to a stranger, open on a hook and end on its payoff. Weak moments are dropped, not padded.
+- **Takes a recording you already have**: drop the mp4 of a past stream. No chat is needed.
+- **Your agent reads everything that was said** and picks from it: a story, a strong opinion, a line that lands, not only the loud moments. Chat spikes and sound (screams, laughs, sudden silence) are hints on that page, so a small channel with a quiet chat still gets its clips.
+- **Checks the scene before cutting**: what was said and shown before the moment, so each clip carries what a stranger needs to understand it, opens on a hook and ends on its payoff. Weak moments are dropped, not padded.
 - **Stream layout**: finds the facecam by itself and stacks it over the gameplay, keeping chat and counters out of the frame. Talking heads and podcasts are reframed on whoever is speaking.
 - **Edit**: captions two or three words at a time with key words highlighted, punch-in zooms on the reactions, audio levelled for social.
 - **Credit**: the creator's link on screen and in the post text of every clip, unless the video is your own.
@@ -26,6 +27,7 @@ Then say what you want:
 
 - `watch <channel> and clip it`
 - `clip this VOD <link>`
+- `clip this recording <file>`
 - `clip this video <link or file>`
 
 ## What you need
@@ -37,7 +39,8 @@ Then say what you want:
 ## The honest part
 
 - **Live**: your computer has to stay awake and online for as long as it watches. A moment is saved a little after it happens.
-- **Slow chats** give few chat spikes. The sound covers for it, and sound in a game is noisier than chat.
+- **Small channels**: a quiet chat cannot point at moments, so the whole watch is recorded and read instead. That takes disk: about 1 GB per 7 minutes of 1080p.
+- **Avatars**: the facecam is found by looking for a real face. A drawn or 3D avatar is not found, and those clips use the full frame instead of the stacked layout.
 - **Twitch** chat is read the way a logged-out viewer's browser reads it. If Twitch changes that, chat reading stops until this skill is updated; sound still works. VODs expire and subscriber-only VODs cannot be read.
 - **YouTube** VODs use the chat replay and the "most replayed" curve when the video has them. Live YouTube and other sites are watched by sound only.
 - **Captions** mix the game's voices with the streamer's. The skill fixes what it catches; read them before you post.
@@ -54,13 +57,14 @@ A credit and a link are not permission. Clip a stream when its creator runs a cl
 | `SKILL.md` | What the agent follows, including how it picks moments |
 | `scripts/doctor.sh` | Checks the computer, prints one fix per missing tool |
 | `scripts/prefs.py` | Saved preferences |
-| `scripts/watch.py` | Live: records, reads chat and sound, saves moments |
-| `scripts/scout.py` | VOD: audio and chat only, finds the stretches worth downloading |
+| `scripts/watch.py` | Live: records, reads chat and sound, saves moments or the whole watch |
+| `scripts/scout.py` | VOD: audio and chat only, transcribes it all, finds the stretches worth downloading |
 | `scripts/windows.py` | Downloads those stretches, or gathers live moments, into one source |
 | `scripts/chat.py` | Chat readers and the spike maths |
 | `scripts/fetch.py`, `transcribe.py` | A whole short video, and the word-timed transcript |
-| `scripts/layout.py` | Talk or stream, facecam and gameplay areas |
-| `scripts/moments.py` | Sound and chat candidates with setup and breathe |
+| `scripts/layout.py` | Talk or stream, facecam and gameplay areas, for each clip |
+| `scripts/moments.py`, `reading.py` | The page the agent reads end to end, and the sound and chat candidates |
+| `scripts/look.py` | What was on screen and what was said before and during a moment |
 | `scripts/cut.py`, `edit.py`, `check.py` | Reframe, edit, verify |
 
 ## After the clips
