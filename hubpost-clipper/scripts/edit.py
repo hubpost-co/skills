@@ -464,7 +464,10 @@ def main():
         shown = [w for w in words if not any(a0 - start <= w["start"] < a1 - start for a0, a1 in skip)]
         captions = caption_events(shown, duration)
         patches = [render_caption(e, words_all, accent_rgb, font_cache) for e in captions]
-        if stream:
+        if not data["settings"].get("zoom", False):
+            # Steady framing by default: zooming in on the person at every beat tires the viewer of a clip.
+            zoom_events = []
+        elif stream:
             zoom_events = plan_pulses(shown, plan.get("peaks", []), duration)
         else:
             zoom_events = plan_zooms(words, frames, fps, duration)

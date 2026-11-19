@@ -10,7 +10,7 @@ A free agent skill that turns a livestream, its VOD, a podcast or any long video
 - **Your agent reads everything that was said** and picks from it: a story, a strong opinion, a line that lands, not only the loud moments. Chat spikes and sound (screams, laughs, sudden silence) are hints on that page, so a small channel with a quiet chat still gets its clips.
 - **Checks the scene before cutting**: what was said and shown before the moment, so each clip carries what a stranger needs to understand it, opens on a hook and ends on its payoff. Weak moments are dropped, not padded.
 - **Stream layout**: finds the facecam by itself and stacks it over the gameplay, keeping chat and counters out of the frame. Talking heads and podcasts are reframed on whoever is speaking.
-- **Edit**: captions two or three words at a time with key words highlighted, punch-in zooms on the reactions, audio levelled for social.
+- **Edit**: captions two or three words at a time with key words highlighted, steady framing with no zooming in and out, audio levelled for social.
 - **Credit**: the creator's link on screen and in the post text of every clip, unless the video is your own.
 - **Check**: every clip is checked from real frames (a contact sheet per clip) before it is handed to you.
 - **Remembers your preferences**: it asks its questions once.

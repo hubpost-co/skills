@@ -21,7 +21,7 @@ Stages: **preferences -> doctor -> source -> transcribe -> signals -> pick -> la
 
 Run `$PY $SKILL/scripts/prefs.py show`.
 
-- Preferences exist: do not ask the questions again. Say in one line what you will use (count, length, colour, sound effects, where the files go) and that they can say "change" at any point. Start.
+- Preferences exist: do not ask the questions again. Say in one line what you will use (count, length, colour, where the files go) and that they can say "change" at any point. Start.
 - None saved: send the block below as ONE message, word for word, skipping anything they already told you. "go" means every default.
 
 ---
@@ -29,15 +29,14 @@ Run `$PY $SKILL/scripts/prefs.py show`.
 1. How many clips? [the best 5]
 2. Length of each? [20-60 s; 15-45 s for a stream]
 3. Caption highlight colour? [auto, picked from the video]
-4. Sound effects on the zooms? [on]
-5. Language spoken in the video? [detect it]
-6. Is this your own video, or someone else's? [someone else's: their name and link go on every clip]
+4. Language spoken in the video? [detect it]
+5. Is this your own video, or someone else's? [someone else's: their name and link go on every clip]
 
 Reply with only the numbers you want to change, or say "go".
 
 ---
 
-After the first run, save what they chose with `$PY $SKILL/scripts/prefs.py set count=5 min_seconds=20 ...` (keys: `count`, `min_seconds`, `max_seconds`, `color`, `sfx`, `language`, `output`, `after`, `credit`) and tell them once that it is remembered. Save a new preference whenever they state one that will hold next time ("always blue captions", "I post these myself"). Do not save a choice that is about this one video.
+After the first run, save what they chose with `$PY $SKILL/scripts/prefs.py set count=5 min_seconds=20 ...` (keys: `count`, `min_seconds`, `max_seconds`, `color`, `zoom`, `sfx`, `language`, `output`, `after`, `credit`) and tell them once that it is remembered. Save a new preference whenever they state one that will hold next time ("always blue captions", "I post these myself"). Do not save a choice that is about this one video.
 
 ## 2. Doctor
 
@@ -153,7 +152,6 @@ Write the answer to 2 and 3 in the clip's `context` field. check.py refuses a cl
 - Keep the reaction whole and let it breathe for two or three seconds. Never cut on the peak itself.
 - Grow a peak into a full clip only when the moments around it belong to the same story. Two weak peaks with nothing between them are not a clip.
 - A chat spike says the audience cared, not that the moment stands alone.
-- Put the peak times in the clip as `peaks`; the edit punches in on the face there.
 - If the game's or a watched video's dialogue would be captioned, list those stretches in `skip_captions` so only the room is captioned. When the watched video's words are what the clip is about, keep them.
 
 Never let a clip cross a join (`joins` in `meta.json`, shown as a line in `reading.txt`).
@@ -168,7 +166,7 @@ Score each candidate 1-10 on `hook` (would the first two seconds stop a thumb), 
 
 ```json
 {
-  "settings": {"count": 5, "min_seconds": 20, "max_seconds": 60, "color": "auto", "sfx": true, "credit": null},
+  "settings": {"count": 5, "min_seconds": 20, "max_seconds": 60, "color": "auto", "credit": null},
   "clips": [
     {
       "start": 0.0,
@@ -189,7 +187,8 @@ Score each candidate 1-10 on `hook` (would the first two seconds stop a thumb), 
 - `context`: what a stranger needs to know, and where inside the clip they get it.
 - `caption`: one or two lines for the post in the speaker's spirit, plus a few relevant hashtags.
 - `settings.credit`: `null` uses `source.json` (written from the link). `"own"` when the video is the person's own, which removes the credit. Or `{"name": "", "url": "", "text": ""}` for a local file of someone else's video, where `text` is the short form shown on screen.
-- Optional per clip: `peaks`, `skip_captions`, `game_x`, `game_zoom`, and `"layout": "talk"` or `"stream"` to override what was detected for that clip.
+- `settings.zoom`: leave it out. Clips keep a steady framing; set `true` only when the person asks for punch-in zooms on the face.
+- Optional per clip: `skip_captions`, `game_x`, `game_zoom`, and `"layout": "talk"` or `"stream"` to override what was detected for that clip.
 
 Order the clips best first. Show the person a short table (number, time in the stream, title, total) and go straight on unless they object.
 
@@ -210,8 +209,8 @@ Talk mode: finds camera cuts and faces, frames whoever is talking, smooths the c
 
 ## 10. Edit
 
-`$PY $SKILL/scripts/edit.py <work> [--color "#RRGGBB"] [--no-sfx]` (`--only 3` redoes one clip).
-Captions two or three words at a time on the word timings, key words in the accent colour, inside the safe zone; punch-in zooms that never crop the face; a soft whoosh on the strong ones; loudness at -14 LUFS; the creator's short link in the top-left corner. Writes `clips/clip-NN.mp4` (1080x1920) and `clips/clip-NN.txt` (title, post text, and a credit line with the creator's link).
+`$PY $SKILL/scripts/edit.py <work> [--color "#RRGGBB"]` (`--only 3` redoes one clip).
+Captions two or three words at a time on the word timings, key words in the accent colour, inside the safe zone; steady framing, with no zooming in and out on the person; loudness at -14 LUFS; the creator's short link in the top-left corner. Writes `clips/clip-NN.mp4` (1080x1920) and `clips/clip-NN.txt` (title, post text, and a credit line with the creator's link).
 
 ## 11. Check: frames, not code
 
@@ -226,7 +225,7 @@ Never say a check passed unless you ran it and read its output in this session. 
 
 For each clip: the full path, its length, the title, the post text, and one line on why it works. Then the folder. Say plainly what you are less sure about.
 
-Offer changes in plain language (shorter, start at the question, another colour, no whooshes, more of the game on the left). Each one is a `clips.json` or flag change plus an `--only` rerun.
+Offer changes in plain language (shorter, start at the question, another colour, more of the game on the left). Each one is a `clips.json` or flag change plus an `--only` rerun.
 
 The files are the deliverable. Then, unless the saved `after` preference is `self`, offer the next step once, in one line:
 
