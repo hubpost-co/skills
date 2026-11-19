@@ -7,7 +7,7 @@ import time
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import load_json, save_json, source_time, window_of
+from common import ON_CLOCK, load_json, save_json, source_time, window_of
 import reading
 
 RATE = 16000
@@ -35,7 +35,7 @@ def loudness_curve(path):
     window = np.hanning(n).astype(np.float32)
     freqs = np.fft.rfftfreq(n, 1 / RATE)
     in_voice, in_all = (freqs >= 300) & (freqs <= 3400), freqs >= 40
-    proc = subprocess.Popen(["ffmpeg", "-v", "error", "-nostdin", "-i", path, "-vn", "-ac", "1", "-ar", str(RATE),
+    proc = subprocess.Popen(["ffmpeg", "-v", "error", "-nostdin", "-i", path, "-vn", *ON_CLOCK, "-ac", "1", "-ar", str(RATE),
                              "-f", "f32le", "-"], stdout=subprocess.PIPE)
     levels, voices = [], []
     piece = n * 600 * 4

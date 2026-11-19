@@ -21,29 +21,38 @@ Stages: **preferences -> doctor -> source -> transcribe -> signals -> pick -> la
 
 Run `$PY $SKILL/scripts/prefs.py show`.
 
-- Preferences exist: do not ask the questions again. Say in one line what you will use (count, length, colour, where the files go) and that they can say "change" at any point. Start.
+- Preferences exist: do not ask the questions again. Say in one line what you will use (count, length, kind of moments, colour, where the files go) and that they can say "change" at any point. Start. The taste notes it prints are instructions from this person: follow them when you pick and when you edit.
 - None saved: send the block below as ONE message, word for word, skipping anything they already told you. "go" means every default.
 
 ---
 
 1. How many clips? [the best 5]
 2. Length of each? [20-60 s; 15-45 s for a stream]
-3. Caption highlight colour? [auto, picked from the video]
-4. Language spoken in the video? [detect it]
-5. Is this your own video, or someone else's? [someone else's: their name and link go on every clip]
+3. What kind of moments are you after? [the best of whatever happens: funny, a fail, a strong opinion, a story, something useful]
+4. Caption highlight colour? [auto, picked from the video]
+5. Language spoken in the video? [detect it]
+6. Is this your own video, or someone else's? [someone else's: their name and link go on every clip]
 
 Reply with only the numbers you want to change, or say "go".
 
 ---
 
-After the first run, save what they chose with `$PY $SKILL/scripts/prefs.py set count=5 min_seconds=20 ...` (keys: `count`, `min_seconds`, `max_seconds`, `color`, `zoom`, `sfx`, `language`, `output`, `after`, `credit`) and tell them once that it is remembered. Save a new preference whenever they state one that will hold next time ("always blue captions", "I post these myself"). Do not save a choice that is about this one video.
+After the first run, save what they chose with `$PY $SKILL/scripts/prefs.py set count=5 min_seconds=20 ...` (keys: `count`, `min_seconds`, `max_seconds`, `moments`, `color`, `zoom`, `sfx`, `language`, `output`, `after`, `credit`) and tell them once that it is remembered. Do not save a choice that is about this one video.
 
-## 2. Doctor
+### Learn their taste
+
+The questions cover the basics; what makes the clips theirs comes from how they react to the clips. Every time the person says what they like or dislike in a way that will hold next time (about which moments were chosen, where a clip starts or ends, the captions, the framing, the pace, the titles), save it as one plain sentence with the reason when they gave one: `$PY $SKILL/scripts/prefs.py taste "<sentence>"`. Write the principle, not the clip it was said about. `prefs.py show` lists the notes with numbers; `prefs.py untaste <number>` removes one they took back or that a newer note replaces.
+
+Before picking moments (step 7) and before the edit (step 10), read the notes again and apply each one. When a note conflicts with a default in this file, the note wins. When two notes conflict, ask once and keep the answer.
+
+## 2. Doctor and the first-time setup
 
 Run `bash $SKILL/scripts/doctor.sh`.
 
-- `ready` and a `PYTHON=` line: go on.
-- Fix lines: if the person said "set this up for me" or agrees when asked, run them in the order printed, then run doctor again. A line that needs their password (Homebrew, `sudo`) is theirs to paste in their own terminal.
+- `ready` and a `PYTHON=` line: go on, and say nothing about the tools.
+- Anything missing: tell the person, in a few lines and in their language, only what is missing: each tool's name, what it does for the clips and its size (the doctor prints this next to each missing line), and the total. All of it is free, needs no account, and the video stays on their computer. Then ask to go ahead. No tour of the tools that are already there.
+- On their yes (or when they opened with "set this up for me"), run the fix lines in the order printed, then run doctor again until it says `ready`. A line that needs their password (Homebrew, `sudo`) is theirs to paste in their own terminal.
+- If they ask what the skill needs or what was installed, `bash $SKILL/scripts/doctor.sh --explain` lists every tool and what it is for.
 - The first transcription downloads the speech model once (about 500 MB). Say so before it starts.
 
 ## 3. What the person should know (say it once, short)
@@ -93,7 +102,7 @@ Longer: scout first, download only what is worth it.
 
 `$PY $SKILL/scripts/transcribe.py <work>` (`--language en` skips detection).
 Writes `transcript.json` (every word with start and end) and `transcript.txt` (one timestamped sentence per line).
-Fix clearly misheard names in `transcript.json` now, so the captions spell them right. In a stream, lines nobody in the room would say are usually the game or the video being watched.
+Every word's time is on the video file's own clock, the same one the cut uses, so captions land on the speech even when a recording's sound starts later than its picture or has gaps. Fix clearly misheard names in `transcript.json` now, so the captions spell them right; change the text of a word, never its times. In a stream, lines nobody in the room would say are usually the game or the video being watched.
 
 ## 6. Signals and the reading page
 
@@ -215,9 +224,9 @@ Captions two or three words at a time on the word timings, key words in the acce
 ## 11. Check: frames, not code
 
 `$PY $SKILL/scripts/check.py <work>`
-For each clip it writes a contact sheet (one frame per second, red lines for the areas the apps cover, a dotted line for the stream divider) and checks: a face in the frame, captions in the safe zone and off the face, length in range, audio near -14 LUFS, the credit on screen and in the post text, no clip crossing a join.
+For each clip it writes a contact sheet (one frame per second, red lines for the areas the apps cover, a dotted line for the stream divider) and checks: a face in the frame, captions in the safe zone and off the face, captions in time with the speech (it listens to the finished clip again and compares; more than a quarter of a second off fails), length in range, audio near -14 LUFS, the credit on screen and in the post text, no clip crossing a join.
 
-Then **open every sheet and look at it.** The face check can fail on a dark or small facecam that looks fine, and pass on a framing that looks wrong: the sheet decides, and you say which it was. Look for a face cut off, the wrong person framed, captions on a face, a start or end mid-word, a dead stretch, chat or alerts in the gameplay panel, a cam panel showing more game than people. Fix it (move `start`/`end`, set `game_x`, rerun cut and edit with `--only`), then check again.
+Then **open every sheet and look at it.** The face check can fail on a dark or small facecam that looks fine, and pass on a framing that looks wrong: the sheet decides, and you say which it was. A clip whose captions run early or late is not fixed by hand: run transcribe.py again, then cut and edit that clip again, and check again. If it still fails, say so in the hand-over with the number of seconds; never hand over a clip with captions out of time as if it were fine. Look for a face cut off, the wrong person framed, captions on a face, a start or end mid-word, a dead stretch, chat or alerts in the gameplay panel, a cam panel showing more game than people. Fix it (move `start`/`end`, set `game_x`, rerun cut and edit with `--only`), then check again.
 
 Never say a check passed unless you ran it and read its output in this session. Anything still weak goes in the hand-over, named.
 

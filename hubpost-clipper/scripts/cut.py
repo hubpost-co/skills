@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import (CAM_H, DIVIDER, GAME_H, OUT_H, OUT_W, clip_name, close_writer, compose_stream, game_crop_in,
+from common import (CAM_H, DIVIDER, GAME_H, ON_CLOCK, OUT_H, OUT_W, clip_name, close_writer, compose_stream, game_crop_in,
                     load_clips, load_json, open_writer, read_frames, save_json)
 
 ANALYSIS_FPS = 10
@@ -298,7 +298,7 @@ def cut_stream(work, source, name, clip, settings, layout, start, end, fps, src_
     n_out = int(duration * fps)
     out_path = os.path.join(work, "cuts", f"{name}.mp4")
     audio = ["-ss", f"{start:.3f}", "-t", f"{duration:.3f}", "-i", source]
-    writer = open_writer(out_path, audio, fps=fps, crf=14)
+    writer = open_writer(out_path, audio, fps=fps, crf=14, extra_audio_filter=ON_CLOCK[1])
     count = 0
     for frame in read_frames(source, start, duration, fps):
         if count >= n_out:
@@ -357,7 +357,7 @@ def main():
         frames, segments, crop_w = plan_clip(smalls, grays, detections, src_w, src_h, n_out, fps)
         out_path = os.path.join(work, "cuts", f"{name}.mp4")
         audio = ["-ss", f"{start:.3f}", "-t", f"{duration:.3f}", "-i", source]
-        writer = open_writer(out_path, audio, fps=fps, crf=14)
+        writer = open_writer(out_path, audio, fps=fps, crf=14, extra_audio_filter=ON_CLOCK[1])
         count = 0
         for frame in read_frames(source, start, duration, fps):
             if count >= n_out:

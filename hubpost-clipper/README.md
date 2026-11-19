@@ -12,7 +12,7 @@ A free agent skill that turns a livestream, its VOD, a podcast or any long video
 - **Stream layout**: finds the facecam by itself and stacks it over the gameplay, keeping chat and counters out of the frame. Talking heads and podcasts are reframed on whoever is speaking.
 - **Edit**: captions two or three words at a time with key words highlighted, steady framing with no zooming in and out, audio levelled for social.
 - **Credit**: the creator's link on screen and in the post text of every clip, unless the video is your own.
-- **Check**: every clip is checked from real frames (a contact sheet per clip) before it is handed to you.
+- **Check**: every clip is checked from real frames (a contact sheet per clip), and its captions are timed against the speech, before it is handed to you.
 - **Remembers your preferences**: it asks its questions once.
 
 ## Install
@@ -34,7 +34,24 @@ Then say what you want:
 
 - An agent that can run commands on your computer (Claude Code, Codex, Cursor, Gemini CLI). A chat window in a browser cannot download or cut video.
 - macOS or Linux. On Windows, run it inside WSL.
-- ffmpeg and Python 3.10 or newer (the setup step installs them), about 2 GB of disk for the tools and the speech model, plus room for the video.
+- About 2 GB of disk for the tools and the speech model, plus room for the video (about 1 GB per 7 minutes of 1080p kept).
+
+### What gets installed
+
+You do not install these by hand: say **set this up for me** and the agent explains each one, asks, and installs what is missing. All of it is free and open source, needs no account, and your video never leaves your computer.
+
+| Tool | What it does here |
+|---|---|
+| ffmpeg (with ffprobe) | Reads, cuts and writes the video and the sound |
+| Python 3.10 or newer | Runs the skill's scripts |
+| faster-whisper | Speech to text with the time of every word, on your computer. Its speech model (about 500 MB) downloads the first time |
+| OpenCV | Finds faces and the facecam |
+| NumPy, Pillow | Sound and picture measurements, drawing the captions |
+| yt-dlp | Downloads a video or a VOD from its link |
+| streamlink | Records a stream while it is live |
+| Homebrew (Mac only) | Installs Python and ffmpeg if they are missing; asks for your password once |
+
+The Python packages go into a private folder inside the skill (`.venv`), so nothing else on your computer changes. To remove everything, delete the skill's folder; ffmpeg and Python stay until you uninstall them yourself.
 
 ## The honest part
 

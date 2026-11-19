@@ -5,6 +5,7 @@ import subprocess
 import sys
 
 import cv2
+import numpy as np
 from PIL import Image, ImageDraw
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -68,7 +69,30 @@ def detect(gray, detectors):
     return found
 
 
-def check_clip(work, index, settings, detector):
+def bare(text):
+    return "".join(ch for ch in text.lower() if ch.isalnum())
+
+
+def caption_offset(work, name, path):
+    """How far the captions run from the speech: the finished clip is heard again and its words are
+    matched to the words the captions were timed on. Positive = captions late. None = too few matches."""
+    from transcribe import transcribe
+    plan = load_json(os.path.join(work, "cuts", f"{name}.json"))
+    start, end = plan["start"], plan["end"]
+    timed = [(bare(w["text"]), w["start"] - start) for w in load_json(os.path.join(work, "transcript.json"))
+             if start - 0.05 <= w["start"] <= end]
+    heard, _ = transcribe(path, beam=1, quiet=True)
+    gaps = []
+    for w in heard:
+        same = [t for text, t in timed if text == bare(w["text"]) and len(text) > 2 and abs(t - w["start"]) < 3.0]
+        if same:
+            gaps.append(min(same, key=lambda t: abs(t - w["start"])) - w["start"])
+    if len(gaps) < 4:
+        return None
+    return float(np.median(gaps))
+
+
+def check_clip(work, index, settings, detector, sync=True):
     name = clip_name(index)
     clips_dir = os.path.join(work, "clips")
     path = os.path.join(clips_dir, f"{name}.mp4")
@@ -166,19 +190,29 @@ def check_clip(work, index, settings, detector):
         notes.append("stream layout")
     elif fit:
         notes.append(f"{fit} s in full-frame layout (no big face)")
+    if sync and os.path.exists(os.path.join(work, "cuts", f"{name}.json")):
+        offset = caption_offset(work, name, path)
+        if offset is None:
+            notes.append("caption timing not measured (too few words matched)")
+        else:
+            notes.append(f"captions {abs(offset):.2f} s {'late' if offset > 0 else 'early'}")
+            if abs(offset) > 0.25:
+                problems.append(f"captions run {abs(offset):.2f} s {'after' if offset > 0 else 'before'} the speech: "
+                                "transcribe again with this version of the skill, then cut and edit again")
     return name, problems, notes
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("workdir")
+    ap.add_argument("--no-sync", action="store_true", help="skip hearing each clip again to time its captions")
     a = ap.parse_args()
     data = load_clips(a.workdir)
     detector = (cv2.CascadeClassifier(os.path.join(cv2.data.haarcascades, "haarcascade_frontalface_default.xml")),
                 cv2.CascadeClassifier(os.path.join(cv2.data.haarcascades, "haarcascade_profileface.xml")))
     failed = 0
     for index in range(len(data["clips"])):
-        name, problems, notes = check_clip(a.workdir, index, data["settings"], detector)
+        name, problems, notes = check_clip(a.workdir, index, data["settings"], detector, not a.no_sync)
         status = "PASS" if not problems else "FAIL"
         failed += bool(problems)
         print(f"{name}: {status}  ({', '.join(notes)})")

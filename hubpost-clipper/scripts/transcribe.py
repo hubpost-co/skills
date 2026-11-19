@@ -1,7 +1,13 @@
 import argparse
 import json
 import os
+import subprocess
+import sys
+import tempfile
 import time
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from common import ON_CLOCK
 
 
 def stamp(seconds):
@@ -23,20 +29,31 @@ def sentences(words):
     return out
 
 
-def transcribe(source, model="small", language=None, beam=5):
+def transcribe(source, model="small", language=None, beam=5, quiet=False):
     from faster_whisper import WhisperModel
 
-    engine = WhisperModel(model, device="cpu", compute_type="int8")
-    segments, info = engine.transcribe(
-        source, language=language, word_timestamps=True, vad_filter=True, beam_size=beam)
-    words = []
-    for seg in segments:
-        for w in seg.words or []:
-            text = w.word.strip()
-            if text:
-                words.append({"text": text, "start": round(w.start, 3), "end": round(w.end, 3)})
-        print(f"  transcribed to {stamp(seg.end)}", end="\r", flush=True)
-    print()
+    # The sound is first written out on the file's own clock (see ON_CLOCK), so a word's time here is
+    # the same time cut.py seeks to.
+    handle, wav = tempfile.mkstemp(suffix=".wav")
+    os.close(handle)
+    try:
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-nostdin", "-i", source, "-vn", *ON_CLOCK,
+                        "-ac", "1", "-ar", "16000", wav], check=True)
+        engine = WhisperModel(model, device="cpu", compute_type="int8")
+        segments, info = engine.transcribe(
+            wav, language=language, word_timestamps=True, vad_filter=True, beam_size=beam)
+        words = []
+        for seg in segments:
+            for w in seg.words or []:
+                text = w.word.strip()
+                if text:
+                    words.append({"text": text, "start": round(w.start, 3), "end": round(w.end, 3)})
+            if not quiet:
+                print(f"  transcribed to {stamp(seg.end)}", end="\r", flush=True)
+        if not quiet:
+            print()
+    finally:
+        os.remove(wav)
     return words, info.language
 
 
