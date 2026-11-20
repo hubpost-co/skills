@@ -19,8 +19,6 @@ SKILL = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FONT = os.path.join(SKILL, "fonts", "Montserrat-ExtraBold.ttf")
 WHOOSH = os.path.join(SKILL, "sfx", "whoosh.wav")
 FONT_SIZE = 100
-CREDIT_SIZE = 34
-CREDIT_X, CREDIT_Y = 36, 208
 MAX_TEXT_W = 940
 CAPTION_TOP_MIN, CAPTION_TOP_MAX = 1250, 1480
 ZOOM_EASE = 0.25
@@ -189,28 +187,6 @@ def render_caption(event, words_all, accent_rgb, font_cache):
     rgba = np.array(out)
     bgra = rgba[:, :, [2, 1, 0, 3]]
     return bgra
-
-
-def load_credit(work, settings):
-    """None when the person is clipping their own video; otherwise who made it."""
-    choice = settings.get("credit")
-    if choice == "own":
-        return None
-    if isinstance(choice, dict):
-        return choice
-    path = os.path.join(work, "source.json")
-    return load_json(path) if os.path.exists(path) else None
-
-
-def render_credit(text):
-    font = ImageFont.truetype(FONT, CREDIT_SIZE)
-    box = font.getbbox(text)
-    w, h = box[2] - box[0] + 24, box[3] - box[1] + 24
-    shadow = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    ImageDraw.Draw(shadow).text((12 - box[0], 12 - box[1]), text, font=font, fill=(0, 0, 0, 200))
-    shadow = shadow.filter(ImageFilter.GaussianBlur(4))
-    ImageDraw.Draw(shadow).text((12 - box[0], 12 - box[1]), text, font=font, fill=(255, 255, 255, 215))
-    return np.array(shadow)[:, :, [2, 1, 0, 3]]
 
 
 def overlay(frame, patch, cx, top, scale):
@@ -445,8 +421,6 @@ def main():
     accent_rgb = tuple(int(color.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4))
     sfx_on = not a.no_sfx and data["settings"].get("sfx", True)
     font_cache = {}
-    credit = load_credit(work, data["settings"])
-    credit_patch = render_credit(credit["text"]) if credit and credit.get("text") else None
     for index, clip in enumerate(data["clips"]):
         if a.only and index + 1 != a.only:
             continue
@@ -464,7 +438,10 @@ def main():
         shown = [w for w in words if not any(a0 - start <= w["start"] < a1 - start for a0, a1 in skip)]
         captions = caption_events(shown, duration)
         patches = [render_caption(e, words_all, accent_rgb, font_cache) for e in captions]
-        if stream:
+        if not data["settings"].get("zoom", False):
+            # Steady framing by default: zooming in on the person at every beat tires the viewer of a clip.
+            zoom_events = []
+        elif stream:
             zoom_events = plan_pulses(shown, plan.get("peaks", []), duration)
         else:
             zoom_events = plan_zooms(words, frames, fps, duration)
@@ -498,8 +475,6 @@ def main():
                 overlay(out, patches[ci], OUT_W / 2, top, scale)
                 ph, pw = patches[ci].shape[:2]
                 boxes.append([int(OUT_W / 2 - pw / 2), top, int(OUT_W / 2 + pw / 2), top + ph])
-            if credit_patch is not None:
-                overlay(out, credit_patch, CREDIT_X + credit_patch.shape[1] / 2, CREDIT_Y, 1.0)
             if k % int(round(fps)) == 0:
                 face = None
                 if f["face"]:
@@ -515,12 +490,9 @@ def main():
         save_json(os.path.join(out_dir, f"{name}.layout.json"),
                   {"caption_box": caption_box, "caption_top": top, "accent": color, "zooms": zoom_events,
                    "samples": layout_faces, "duration": duration,
-                   "credit": credit["text"] if credit_patch is not None else None,
                    "stream": {"cam_h": stream["cam_h"], "divider": stream["divider"]} if stream else None})
         with open(os.path.join(out_dir, f"{name}.txt"), "w") as fh:
             fh.write(f"{clip.get('title', '')}\n\n{clip.get('caption', '')}\n")
-            if credit and credit.get("url") and credit["url"] not in clip.get("caption", ""):
-                fh.write(f"\nClipped from {credit.get('name') or credit['text']}: {credit['url']}\n")
         n_in = sum(1 for e in zoom_events if e["zoom"] > 1)
         print(f"{name}: {duration:.1f} s, {len(captions)} captions, {n_in} punch-ins, "
               f"{time.time() - started:.0f} s to edit -> {out_path}")

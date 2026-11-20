@@ -4,6 +4,32 @@ VENV="$SKILL/.venv"
 ok=1
 say() { printf '%-16s %s\n' "$1" "$2"; }
 
+# What each piece is for, in plain words. Printed next to anything missing, and in full with --explain.
+why() {
+  case "$1" in
+    homebrew) echo "the Mac installer the lines below use (free, about 1 GB, asks for your password once)";;
+    python3) echo "runs the skill's scripts (free, about 100 MB)";;
+    ffmpeg|ffprobe) echo "reads, cuts and writes video and sound; ffprobe comes with it (free, about 500 MB with its parts)";;
+    venv) echo "a private folder inside the skill for its Python packages, so nothing else on the computer changes";;
+    faster-whisper) echo "turns speech into text with the time of every word, on this computer (free; its speech model, about 500 MB, downloads at the first transcription)";;
+    opencv-python) echo "finds faces and the facecam in the frames (free, about 150 MB)";;
+    numpy) echo "the maths behind the sound and picture measurements (free, about 60 MB)";;
+    Pillow) echo "draws the captions and the check sheets (free, about 15 MB)";;
+    yt-dlp) echo "downloads a video or VOD from its link (free, about 20 MB)";;
+    streamlink) echo "records a stream while it is live (free, about 30 MB)";;
+  esac
+}
+missing_note() { say "$1" "missing: $(why "$1"). Fix: $2"; }
+
+if [ "$1" = "--explain" ]; then
+  echo "Everything below is free and open source, runs on this computer, and needs no account or key."
+  echo "In all: about 2 GB for the tools and the speech model, plus room for the video being clipped."
+  for t in python3 ffmpeg faster-whisper opencv-python numpy Pillow yt-dlp streamlink venv; do say "$t" "$(why "$t")"; done
+  [ "$(uname -s)" = "Darwin" ] && say homebrew "only if Python or ffmpeg is missing: $(why homebrew)"
+  echo "Nothing is uploaded: the video, the sound and the transcript stay on this computer."
+  exit 0
+fi
+
 good_python() {
   "$1" -c 'import sys; sys.exit(0 if (3, 10) <= sys.version_info[:2] else 1)' 2>/dev/null
 }
@@ -26,7 +52,7 @@ if [ $MAC = 1 ]; then
   GET_PY="brew install python@3.12"
   GET_FF="brew install ffmpeg"
   if ! command -v brew >/dev/null && { [ -z "$PY" ] || ! command -v ffmpeg >/dev/null; }; then
-    say homebrew 'missing. Fix: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
+    missing_note homebrew '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
   fi
 else
   GET_PY="sudo apt-get install -y python3 python3-venv"
@@ -34,14 +60,14 @@ else
 fi
 
 if [ -z "$PY" ]; then
-  say python3 "missing or older than 3.10. Fix: $GET_PY"
+  missing_note python3 "$GET_PY (needs 3.10 or newer)"
   ok=0
 else
   say python3 "ok ($("$PY" -c 'import platform; print(platform.python_version())'), $PY)"
 fi
 
 for t in ffmpeg ffprobe; do
-  if command -v $t >/dev/null; then say $t ok; else say $t "missing. Fix: $GET_FF"; ok=0; fi
+  if command -v $t >/dev/null; then say $t ok; else missing_note $t "$GET_FF"; ok=0; fi
 done
 
 if [ -n "$PY" ]; then
@@ -56,10 +82,10 @@ if [ -n "$PY" ]; then
   if [ -n "$missing" ]; then
     ok=0
     if [ "$PY" != "$VENV/bin/python3" ]; then
-      say venv "missing. Fix: $PY -m venv \"$VENV\""
+      missing_note venv "$PY -m venv \"$VENV\""
     fi
     for pkg in $missing; do
-      say "${pkg%%<*}" "missing. Fix: \"$VENV/bin/python3\" -m pip install -U '$pkg'"
+      missing_note "${pkg%%<*}" "\"$VENV/bin/python3\" -m pip install -U '$pkg'"
     done
   else
     for pkg in faster-whisper opencv-python numpy Pillow yt-dlp streamlink; do say "$pkg" ok; done

@@ -7,7 +7,8 @@ import time
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import load_json, save_json, source_time, window_of
+from common import ON_CLOCK, load_json, save_json, source_time, window_of
+import reading
 
 RATE = 16000
 HOP = 0.1
@@ -34,7 +35,7 @@ def loudness_curve(path):
     window = np.hanning(n).astype(np.float32)
     freqs = np.fft.rfftfreq(n, 1 / RATE)
     in_voice, in_all = (freqs >= 300) & (freqs <= 3400), freqs >= 40
-    proc = subprocess.Popen(["ffmpeg", "-v", "error", "-nostdin", "-i", path, "-vn", "-ac", "1", "-ar", str(RATE),
+    proc = subprocess.Popen(["ffmpeg", "-v", "error", "-nostdin", "-i", path, "-vn", *ON_CLOCK, "-ac", "1", "-ar", str(RATE),
                              "-f", "f32le", "-"], stdout=subprocess.PIPE)
     levels, voices = [], []
     piece = n * 600 * 4
@@ -196,6 +197,21 @@ def main():
             max(near, key=lambda e: e["db"])["chat"] = c
         else:
             events.append({"t": max(0.0, c["t"] - 5), "kind": "chat", "db": 0.0, "voice": 0.0, "chat": c})
+    marks = []
+    # Only the strongest sound events are marked on the page (about one a minute): more than that hides them.
+    loudest = sorted((e for e in events if e["kind"] in ("jump", "silence")),
+                     key=lambda e: -e["db"] * (0.4 + 0.6 * e["voice"]))[:max(6, int(duration / 60))]
+    for e in events:
+        if e not in loudest and not e.get("chat"):
+            continue
+        if e["kind"] == "jump":
+            marks.append((e["t"], f"LOUD +{e['db']:.0f} dB" + (", mostly not a voice" if e["voice"] < 0.35 else "")))
+        elif e["kind"] == "silence":
+            marks.append((e["t"], "SUDDEN QUIET"))
+        if e.get("chat"):
+            marks.append((e["t"], f"CHAT: {e['chat'].get('reacting', 0)} of {e['chat']['people']} people reacting"))
+    reading.write(os.path.join(work, "reading.txt"), words, marks, duration, joins,
+                  (lambda t: source_time(meta, t)) if meta.get("windows") else None)
     candidates = []
     for e in events:
         peak = e["t"]
@@ -254,7 +270,7 @@ def main():
     with open(os.path.join(work, "candidates.txt"), "w") as f:
         f.write("\n".join(lines))
     print(f"{len(candidates)} candidates from {len(events)} sound/word events, {time.time() - started:.0f} s")
-    print("wrote candidates.json and candidates.txt")
+    print("wrote reading.txt (read all of it first), candidates.json and candidates.txt")
 
 
 if __name__ == "__main__":

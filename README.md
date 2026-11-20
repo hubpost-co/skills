@@ -36,7 +36,7 @@ gemini extensions install https://github.com/hubpost-co/skills
 
 | Skill | Invoke (Claude Code) | What it does |
 |---|---|---|
-| [`hubpost-clipper`](./hubpost-clipper) | `/hubpost:hubpost-clipper` | Turn a livestream (live or VOD), a podcast or any long video into finished vertical clips on your own computer: chat and sound spikes, facecam layout, captions, credit, frame checks. Needs no HubPost account; hands finished clips to `hubpost-publish` when you want them scheduled. |
+| [`hubpost-clipper`](./hubpost-clipper) | `/hubpost:hubpost-clipper` | Turn a livestream (live or VOD), a podcast or any long video into finished vertical clips on your own computer: chat and sound spikes, facecam layout, captions, frame checks. Needs no HubPost account; hands finished clips to `hubpost-publish` when you want them scheduled. |
 | [`hubpost-publish`](./hubpost-publish) | `/hubpost:hubpost-publish` | Schedule, publish and review posts across every connected account, with per platform text and a confirmation before anything goes out. |
 
 ## Sign in

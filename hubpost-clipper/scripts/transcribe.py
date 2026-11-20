@@ -1,7 +1,13 @@
 import argparse
 import json
 import os
+import subprocess
+import sys
+import tempfile
 import time
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from common import ON_CLOCK
 
 
 def stamp(seconds):
@@ -23,6 +29,34 @@ def sentences(words):
     return out
 
 
+def transcribe(source, model="small", language=None, beam=5, quiet=False):
+    from faster_whisper import WhisperModel
+
+    # The sound is first written out on the file's own clock (see ON_CLOCK), so a word's time here is
+    # the same time cut.py seeks to.
+    handle, wav = tempfile.mkstemp(suffix=".wav")
+    os.close(handle)
+    try:
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-nostdin", "-i", source, "-vn", *ON_CLOCK,
+                        "-ac", "1", "-ar", "16000", wav], check=True)
+        engine = WhisperModel(model, device="cpu", compute_type="int8")
+        segments, info = engine.transcribe(
+            wav, language=language, word_timestamps=True, vad_filter=True, beam_size=beam)
+        words = []
+        for seg in segments:
+            for w in seg.words or []:
+                text = w.word.strip()
+                if text:
+                    words.append({"text": text, "start": round(w.start, 3), "end": round(w.end, 3)})
+            if not quiet:
+                print(f"  transcribed to {stamp(seg.end)}", end="\r", flush=True)
+        if not quiet:
+            print()
+    finally:
+        os.remove(wav)
+    return words, info.language
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("workdir")
@@ -30,21 +64,9 @@ def main():
     ap.add_argument("--language", default=None)
     a = ap.parse_args()
 
-    from faster_whisper import WhisperModel
-
     source = os.path.join(a.workdir, "source.mp4")
     started = time.time()
-    model = WhisperModel(a.model, device="cpu", compute_type="int8")
-    segments, info = model.transcribe(
-        source, language=a.language, word_timestamps=True, vad_filter=True, beam_size=5)
-    words = []
-    for seg in segments:
-        for w in seg.words or []:
-            text = w.word.strip()
-            if text:
-                words.append({"text": text, "start": round(w.start, 3), "end": round(w.end, 3)})
-        print(f"  transcribed to {stamp(seg.end)}", end="\r", flush=True)
-    print()
+    words, language = transcribe(source, a.model, a.language)
 
     with open(os.path.join(a.workdir, "transcript.json"), "w") as f:
         json.dump(words, f, ensure_ascii=False)
@@ -53,9 +75,9 @@ def main():
         text = " ".join(w["text"] for w in group)
         lines.append(f"[{stamp(group[0]['start'])} - {stamp(group[-1]['end'])}] {text}")
     with open(os.path.join(a.workdir, "transcript.txt"), "w") as f:
-        f.write(f"language: {info.language}\n\n")
+        f.write(f"language: {language}\n\n")
         f.write("\n".join(lines) + "\n")
-    print(f"{len(words)} words, language {info.language}, {time.time() - started:.0f} s")
+    print(f"{len(words)} words, language {language}, {time.time() - started:.0f} s")
     print("wrote transcript.json and transcript.txt")
 
 

@@ -96,6 +96,13 @@ GAME_H = OUT_H - CAM_H - DIVIDER
 DIVIDER_BGR = (12, 12, 12)
 
 
+# One clock for everything: ffmpeg's, which starts at the first packet of the file. A recording of a
+# live stream often has its sound starting a second or so after its picture; a decoder that reads the
+# sound alone would call that first sample "zero" and every word would land early. Padding the sound
+# to the file's start keeps words, cuts and captions on the same clock.
+ON_CLOCK = ["-af", "aresample=async=1:first_pts=0"]
+
+
 def grab_frame(path, t, width=None, height=None):
     vf = []
     if width and height:
@@ -150,7 +157,7 @@ def ytdlp_command():
 
 
 def source_info(url):
-    """Who made the video: used for the on-screen credit and the credit line of every post."""
+    """Who made the video and where it lives, kept in source.json for the hand-over."""
     res = subprocess.run(ytdlp_command() + ["-J", "--no-playlist", "--no-warnings", url],
                          capture_output=True, text=True)
     if res.returncode != 0 or not res.stdout.strip():

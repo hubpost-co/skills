@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import (CAM_H, DIVIDER, GAME_H, OUT_H, OUT_W, clip_name, close_writer, compose_stream, game_crop_in,
+from common import (CAM_H, DIVIDER, GAME_H, ON_CLOCK, OUT_H, OUT_W, clip_name, close_writer, compose_stream, game_crop_in,
                     load_clips, load_json, open_writer, read_frames, save_json)
 
 ANALYSIS_FPS = 10
@@ -280,9 +280,14 @@ def render_frame(frame, plan, crop_w, src_h):
     bg = cv2.resize(small, (int(w * cover), int(h * cover)), interpolation=cv2.INTER_LINEAR)
     oy, ox = (bg.shape[0] - OUT_H) // 2, (bg.shape[1] - OUT_W) // 2
     out = (bg[oy:oy + OUT_H, ox:ox + OUT_W].astype(np.float32) * 0.45).astype(np.uint8)
-    fg_h = int(round(h * OUT_W / w))
-    fg = cv2.resize(frame, (OUT_W, fg_h), interpolation=cv2.INTER_AREA)
-    out[FIT_TOP:FIT_TOP + fg_h] = fg
+    # The whole frame, as large as it fits: a wide video sits in the upper part, a video that is
+    # already vertical fills the canvas.
+    fit = min(OUT_W / w, OUT_H / h)
+    fg_w, fg_h = int(round(w * fit)), int(round(h * fit))
+    fg = cv2.resize(frame, (fg_w, fg_h), interpolation=cv2.INTER_AREA if fit < 1 else cv2.INTER_CUBIC)
+    top = FIT_TOP if FIT_TOP + fg_h <= OUT_H else (OUT_H - fg_h) // 2
+    left = (OUT_W - fg_w) // 2
+    out[top:top + fg_h, left:left + fg_w] = fg
     return out
 
 
@@ -298,7 +303,7 @@ def cut_stream(work, source, name, clip, settings, layout, start, end, fps, src_
     n_out = int(duration * fps)
     out_path = os.path.join(work, "cuts", f"{name}.mp4")
     audio = ["-ss", f"{start:.3f}", "-t", f"{duration:.3f}", "-i", source]
-    writer = open_writer(out_path, audio, fps=fps, crf=14)
+    writer = open_writer(out_path, audio, fps=fps, crf=14, extra_audio_filter=ON_CLOCK[1])
     count = 0
     for frame in read_frames(source, start, duration, fps):
         if count >= n_out:
@@ -338,7 +343,9 @@ def main():
             continue
         started = time.time()
         here = layout
-        for part in layout.get("windows") or []:
+        parts = layout.get("windows") or []
+        own = [p for p in parts if p.get("clip") == index + 1]
+        for part in own or [p for p in parts if "clip" not in p]:
             if part["at"] <= clip["start"] < part["at"] + part["length"]:
                 here = part
         stream = clip.get("layout", here.get("mode")) == "stream" and "cam_crop" in here
@@ -355,7 +362,7 @@ def main():
         frames, segments, crop_w = plan_clip(smalls, grays, detections, src_w, src_h, n_out, fps)
         out_path = os.path.join(work, "cuts", f"{name}.mp4")
         audio = ["-ss", f"{start:.3f}", "-t", f"{duration:.3f}", "-i", source]
-        writer = open_writer(out_path, audio, fps=fps, crf=14)
+        writer = open_writer(out_path, audio, fps=fps, crf=14, extra_audio_filter=ON_CLOCK[1])
         count = 0
         for frame in read_frames(source, start, duration, fps):
             if count >= n_out:

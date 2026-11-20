@@ -5,6 +5,7 @@ import subprocess
 import sys
 
 import cv2
+import numpy as np
 from PIL import Image, ImageDraw
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -68,7 +69,82 @@ def detect(gray, detectors):
     return found
 
 
-def check_clip(work, index, settings, detector):
+def bare(text):
+    return "".join(ch for ch in text.lower() if ch.isalnum())
+
+
+def caption_offset(work, name, path):
+    """How far the captions run from the speech: the finished clip is heard again and its words are
+    matched to the words the captions were timed on. Positive = captions late. None = too few matches."""
+    from transcribe import transcribe
+    plan = load_json(os.path.join(work, "cuts", f"{name}.json"))
+    start, end = plan["start"], plan["end"]
+    timed = [(bare(w["text"]), w["start"] - start) for w in load_json(os.path.join(work, "transcript.json"))
+             if start - 0.05 <= w["start"] <= end]
+    heard, _ = transcribe(path, beam=1, quiet=True)
+    gaps = []
+    for w in heard:
+        same = [t for text, t in timed if text == bare(w["text"]) and len(text) > 2 and abs(t - w["start"]) < 3.0]
+        if same:
+            gaps.append(min(same, key=lambda t: abs(t - w["start"])) - w["start"])
+    if len(gaps) < 4:
+        return None
+    return float(np.median(gaps))
+
+
+EDGE_START, EDGE_END = 0.25, 0.35
+
+
+def edge_problems(work, name, clip):
+    """A clip that starts or ends while someone is still talking reads as cut off."""
+    plan_path = os.path.join(work, "cuts", f"{name}.json")
+    if not os.path.exists(plan_path):
+        return []
+    plan = load_json(plan_path)
+    start, end = plan["start"], plan["end"]
+    words = load_json(os.path.join(work, "transcript.json"))
+    inside = [w for w in words if w["start"] >= start - 0.05 and w["end"] <= end + 0.05]
+    if not inside:
+        return []
+    out = []
+    before = [w for w in words if w["end"] <= inside[0]["start"] + 0.01 and w is not inside[0]]
+    after = [w for w in words if w["start"] >= inside[-1]["end"] - 0.01 and w is not inside[-1]]
+    if before and inside[0]["start"] - before[-1]["end"] < EDGE_START \
+            and not before[-1]["text"].rstrip().endswith((".", "?", "!")):
+        out.append(f"starts in the middle of speech: \"{before[-1]['text']}\" is said right before the first word "
+                   f"\"{inside[0]['text']}\". Move the start back to where the sentence begins, or forward to the next one")
+    if after and after[0]["start"] - inside[-1]["end"] < EDGE_END \
+            and not inside[-1]["text"].rstrip().endswith((".", "?", "!")):
+        out.append(f"ends in the middle of speech: \"{after[0]['text']}\" follows the last word "
+                   f"\"{inside[-1]['text']}\" at once. Move the end to where the sentence finishes")
+    return out
+
+
+def write_blind(work, name, clips_dir):
+    """What a viewer hears, and nothing else: no title, no context, no post text. For the stranger test."""
+    plan_path = os.path.join(work, "cuts", f"{name}.json")
+    if not os.path.exists(plan_path):
+        return
+    plan = load_json(plan_path)
+    start, end = plan["start"], plan["end"]
+    lines, current, last = [], [], None
+    for w in load_json(os.path.join(work, "transcript.json")):
+        if not (w["start"] >= start - 0.05 and w["end"] <= end + 0.05):
+            continue
+        if current and w["start"] - last > 1.2:
+            lines.append(current)
+            current = []
+        current.append(w)
+        last = w["end"]
+    if current:
+        lines.append(current)
+    with open(os.path.join(clips_dir, f"{name}-blind.txt"), "w") as f:
+        f.write(f"A short vertical video, {end - start:.0f} seconds. Everything that is said in it, with the second it starts:\n\n")
+        for group in lines:
+            f.write(f"[{group[0]['start'] - start:.0f} s] " + " ".join(w["text"] for w in group) + "\n")
+
+
+def check_clip(work, index, settings, detector, sync=True):
     name = clip_name(index)
     clips_dir = os.path.join(work, "clips")
     path = os.path.join(clips_dir, f"{name}.mp4")
@@ -77,6 +153,17 @@ def check_clip(work, index, settings, detector):
         return name, ["file missing"], notes
     layout_path = os.path.join(clips_dir, f"{name}.layout.json")
     layout = load_json(layout_path) if os.path.exists(layout_path) else {}
+
+    clip = load_clips(work)["clips"][index]
+    write_blind(work, name, clips_dir)
+    edges = edge_problems(work, name, clip)
+    if clip.get("edges_ok"):
+        notes += [f"edge accepted: {clip['edges_ok']}"] if edges else []
+    else:
+        problems += edges
+    if len((clip.get("context") or "").split()) < 6:
+        problems.append("no `context`: run look.py on this clip, then write what a stranger needs to know "
+                        "and where inside the clip they get it")
 
     duration = probe_duration(path)
     low, high = settings.get("min_seconds", 20), settings.get("max_seconds", 60)
@@ -94,20 +181,6 @@ def check_clip(work, index, settings, detector):
         if abs(loud - (-14)) > 2:
             problems.append(f"loudness {loud:.1f} LUFS is not near -14")
 
-    if settings.get("credit") != "own":
-        text_path = os.path.join(clips_dir, f"{name}.txt")
-        post = open(text_path).read() if os.path.exists(text_path) else ""
-        source_path = os.path.join(work, "source.json")
-        credit = settings.get("credit") if isinstance(settings.get("credit"), dict) else (
-            load_json(source_path) if os.path.exists(source_path) else None)
-        if not credit or not credit.get("url"):
-            problems.append("no credit: say whose video this is (settings.credit), or \"own\" if it is the person's")
-        else:
-            if not layout.get("credit"):
-                problems.append("the creator's name is not on screen")
-            if credit["url"] not in post:
-                problems.append("the post text does not link the creator")
-            notes.append(f"credit {credit['text']}")
     meta_path = os.path.join(work, "meta.json")
     cut_path = os.path.join(work, "cuts", f"{name}.json")
     if os.path.exists(meta_path) and os.path.exists(cut_path):
@@ -161,19 +234,29 @@ def check_clip(work, index, settings, detector):
         notes.append("stream layout")
     elif fit:
         notes.append(f"{fit} s in full-frame layout (no big face)")
+    if sync and os.path.exists(os.path.join(work, "cuts", f"{name}.json")):
+        offset = caption_offset(work, name, path)
+        if offset is None:
+            notes.append("caption timing not measured (too few words matched)")
+        else:
+            notes.append(f"captions {abs(offset):.2f} s {'late' if offset > 0 else 'early'}")
+            if abs(offset) > 0.25:
+                problems.append(f"captions run {abs(offset):.2f} s {'after' if offset > 0 else 'before'} the speech: "
+                                "transcribe again with this version of the skill, then cut and edit again")
     return name, problems, notes
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("workdir")
+    ap.add_argument("--no-sync", action="store_true", help="skip hearing each clip again to time its captions")
     a = ap.parse_args()
     data = load_clips(a.workdir)
     detector = (cv2.CascadeClassifier(os.path.join(cv2.data.haarcascades, "haarcascade_frontalface_default.xml")),
                 cv2.CascadeClassifier(os.path.join(cv2.data.haarcascades, "haarcascade_profileface.xml")))
     failed = 0
     for index in range(len(data["clips"])):
-        name, problems, notes = check_clip(a.workdir, index, data["settings"], detector)
+        name, problems, notes = check_clip(a.workdir, index, data["settings"], detector, not a.no_sync)
         status = "PASS" if not problems else "FAIL"
         failed += bool(problems)
         print(f"{name}: {status}  ({', '.join(notes)})")
