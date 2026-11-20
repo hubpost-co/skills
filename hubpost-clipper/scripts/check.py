@@ -92,6 +92,58 @@ def caption_offset(work, name, path):
     return float(np.median(gaps))
 
 
+EDGE_START, EDGE_END = 0.25, 0.35
+
+
+def edge_problems(work, name, clip):
+    """A clip that starts or ends while someone is still talking reads as cut off."""
+    plan_path = os.path.join(work, "cuts", f"{name}.json")
+    if not os.path.exists(plan_path):
+        return []
+    plan = load_json(plan_path)
+    start, end = plan["start"], plan["end"]
+    words = load_json(os.path.join(work, "transcript.json"))
+    inside = [w for w in words if w["start"] >= start - 0.05 and w["end"] <= end + 0.05]
+    if not inside:
+        return []
+    out = []
+    before = [w for w in words if w["end"] <= inside[0]["start"] + 0.01 and w is not inside[0]]
+    after = [w for w in words if w["start"] >= inside[-1]["end"] - 0.01 and w is not inside[-1]]
+    if before and inside[0]["start"] - before[-1]["end"] < EDGE_START \
+            and not before[-1]["text"].rstrip().endswith((".", "?", "!")):
+        out.append(f"starts in the middle of speech: \"{before[-1]['text']}\" is said right before the first word "
+                   f"\"{inside[0]['text']}\". Move the start back to where the sentence begins, or forward to the next one")
+    if after and after[0]["start"] - inside[-1]["end"] < EDGE_END \
+            and not inside[-1]["text"].rstrip().endswith((".", "?", "!")):
+        out.append(f"ends in the middle of speech: \"{after[0]['text']}\" follows the last word "
+                   f"\"{inside[-1]['text']}\" at once. Move the end to where the sentence finishes")
+    return out
+
+
+def write_blind(work, name, clips_dir):
+    """What a viewer hears, and nothing else: no title, no context, no post text. For the stranger test."""
+    plan_path = os.path.join(work, "cuts", f"{name}.json")
+    if not os.path.exists(plan_path):
+        return
+    plan = load_json(plan_path)
+    start, end = plan["start"], plan["end"]
+    lines, current, last = [], [], None
+    for w in load_json(os.path.join(work, "transcript.json")):
+        if not (w["start"] >= start - 0.05 and w["end"] <= end + 0.05):
+            continue
+        if current and w["start"] - last > 1.2:
+            lines.append(current)
+            current = []
+        current.append(w)
+        last = w["end"]
+    if current:
+        lines.append(current)
+    with open(os.path.join(clips_dir, f"{name}-blind.txt"), "w") as f:
+        f.write(f"A short vertical video, {end - start:.0f} seconds. Everything that is said in it, with the second it starts:\n\n")
+        for group in lines:
+            f.write(f"[{group[0]['start'] - start:.0f} s] " + " ".join(w["text"] for w in group) + "\n")
+
+
 def check_clip(work, index, settings, detector, sync=True):
     name = clip_name(index)
     clips_dir = os.path.join(work, "clips")
@@ -103,6 +155,12 @@ def check_clip(work, index, settings, detector, sync=True):
     layout = load_json(layout_path) if os.path.exists(layout_path) else {}
 
     clip = load_clips(work)["clips"][index]
+    write_blind(work, name, clips_dir)
+    edges = edge_problems(work, name, clip)
+    if clip.get("edges_ok"):
+        notes += [f"edge accepted: {clip['edges_ok']}"] if edges else []
+    else:
+        problems += edges
     if len((clip.get("context") or "").split()) < 6:
         problems.append("no `context`: run look.py on this clip, then write what a stranger needs to know "
                         "and where inside the clip they get it")

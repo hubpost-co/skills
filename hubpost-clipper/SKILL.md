@@ -11,7 +11,7 @@ allowed-tools: Bash
 
 A stream or a long video in, edited vertical clips out. Everything runs on the person's computer.
 
-Stages: **preferences -> doctor -> source -> transcribe -> signals -> pick -> layout -> cut -> edit -> check -> hand-over**.
+Stages: **preferences -> doctor -> source -> transcribe -> signals -> pick -> layout -> cut -> edit -> check -> stranger test -> hand-over**.
 
 - `$SKILL` is this skill's folder. `$PY` is the Python that doctor prints on its `PYTHON=` line; use it for every script.
 - Make one work folder per stream or video, next to where the person is working. Never work inside `$SKILL`. `<work>` below is that folder.
@@ -195,7 +195,7 @@ Score each candidate 1-10 on `hook` (would the first two seconds stop a thumb), 
 - `context`: what a stranger needs to know, and where inside the clip they get it.
 - `caption`: one or two lines for the post in the speaker's spirit, plus a few relevant hashtags.
 - `settings.zoom`: leave it out. Clips keep a steady framing; set `true` only when the person asks for punch-in zooms on the face.
-- Optional per clip: `skip_captions`, `game_x`, `game_zoom`, and `"layout": "talk"` or `"stream"` to override what was detected for that clip.
+- Optional per clip: `edges_ok` (one sentence on why a start or end that check.py calls mid-speech is right, for the rare case where another voice overlaps), `skip_captions`, `game_x`, `game_zoom`, and `"layout": "talk"` or `"stream"` to override what was detected for that clip.
 
 Order the clips best first. Show the person a short table (number, time in the stream, title, total) and go straight on unless they object.
 
@@ -222,15 +222,32 @@ Captions two or three words at a time on the word timings, key words in the acce
 ## 11. Check: frames, not code
 
 `$PY $SKILL/scripts/check.py <work>`
-For each clip it writes a contact sheet (one frame per second, red lines for the areas the apps cover, a dotted line for the stream divider) and checks: a face in the frame, captions in the safe zone and off the face, captions in time with the speech (it listens to the finished clip again and compares; more than a quarter of a second off fails), length in range, audio near -14 LUFS, no clip crossing a join.
+For each clip it writes a contact sheet (one frame per second, red lines for the areas the apps cover, a dotted line for the stream divider) and checks: a face in the frame, captions in the safe zone and off the face, captions in time with the speech (it listens to the finished clip again and compares; more than a quarter of a second off fails), no start or end in the middle of speech (someone still talking right before the first word or right after the last), length in range, audio near -14 LUFS, no clip crossing a join. It also writes `clips/clip-NN-blind.txt`: only what a viewer hears, for step 12.
 
 Then **open every sheet and look at it.** The face check can fail on a dark or small facecam that looks fine, and pass on a framing that looks wrong: the sheet decides, and you say which it was. A clip whose captions run early or late is not fixed by hand: run transcribe.py again, then cut and edit that clip again, and check again. If it still fails, say so in the hand-over with the number of seconds; never hand over a clip with captions out of time as if it were fine. Look for a face cut off, the wrong person framed, captions on a face, a start or end mid-word, a dead stretch, chat or alerts in the gameplay panel, a cam panel showing more game than people. Fix it (move `start`/`end`, set `game_x`, rerun cut and edit with `--only`), then check again.
 
 Never say a check passed unless you ran it and read its output in this session. Anything still weak goes in the hand-over, named.
 
-## 12. Hand-over
+## 12. The stranger test
 
-For each clip: the full path, its length, the title, the post text, and one line on why it works. Then the folder. Say plainly what you are less sure about.
+You cut these clips knowing the whole stream, so you cannot judge whether a stranger follows them: to you they are always clear. Someone who knows nothing has to retell them, and you compare.
+
+Run `$PY $SKILL/scripts/blind.py <work>`. It prints one brief covering every clip not tested yet. Give that brief, word for word and nothing else, to ONE fresh reader: a new subagent with no part of this conversation, on the smallest model available that reads images. One reader for all the clips keeps the cost down. Do not add the titles, the context lines, the streamer's name, the game, or what you expect it to say.
+
+The reader retells; you judge. For each clip compare the retelling with what really happens in it:
+
+- **It matches** when the retelling has the real subject, the real event and the real payoff, in the reader's own words. Record on the clip in `clips.json`: `"stranger": {"said": "<their two sentences>", "obstacle": "<their answer C>", "match": true}`.
+- **It does not match** when the reader got the event wrong, missed the payoff, or could only describe it vaguely. Record `"match": false` with what they said.
+- **Their obstacle (answer C) decides what to fix**, whether or not the retelling matched: the cause of the main reaction is missing (move the start back to where it is said or shown); the end feels cut off (the end sits before the point lands); something is opened and never closed (the end sits too late: end before it opens). A stray line of stream chatter in the middle that the reader did not need is not a reason to recut; if it was captioned and only confuses, hide it with `skip_captions`.
+- The reader works from one frame per second, not from the moving video. When they say they could not see a fast event, look at the clip's frames around that second yourself before changing anything.
+
+After fixing a clip, run layout, cut, edit and check for it, clear its `stranger` field and test it again with a NEW reader: the first one is no longer a stranger. If two rounds do not clear a clip, drop it or hand it over marked as not understood by a stranger, with what the reader said.
+
+Run `blind.py` again until it prints that every clip was retold right. Never write a retelling the reader did not give, never mark a match you would not defend line by line, and never be the reader yourself. If this agent cannot start a fresh reader, say so in the hand-over, mark the clips as not tested by a stranger, and ask the person to watch them cold before posting.
+
+## 13. Hand-over
+
+For each clip: the full path, its length, the title, the post text, one line on why it works, and what the stranger said it was about. Then the folder. Say plainly what you are less sure about.
 
 Offer changes in plain language (shorter, start at the question, another colour, more of the game on the left). Each one is a `clips.json` or flag change plus an `--only` rerun.
 

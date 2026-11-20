@@ -11,7 +11,8 @@ A free agent skill that turns a livestream, its VOD, a podcast or any long video
 - **Checks the scene before cutting**: what was said and shown before the moment, so each clip carries what a stranger needs to understand it, opens on a hook and ends on its payoff. Weak moments are dropped, not padded.
 - **Stream layout**: finds the facecam by itself and stacks it over the gameplay, keeping chat and counters out of the frame. Talking heads and podcasts are reframed on whoever is speaking.
 - **Edit**: captions two or three words at a time with key words highlighted, steady framing with no zooming in and out, audio levelled for social.
-- **Check**: every clip is checked from real frames (a contact sheet per clip), and its captions are timed against the speech, before it is handed to you.
+- **Check**: every clip is checked from real frames (a contact sheet per clip), its captions are timed against the speech, and a start or end in the middle of a sentence fails.
+- **Stranger test**: a fresh agent that never saw the stream gets only the clip and has to say what happened. A clip it cannot follow is fixed or dropped.
 - **Remembers your preferences**: it asks its questions once.
 
 ## Install
@@ -82,6 +83,7 @@ The skill writes nothing on the clip about whose stream it is, so it works the s
 | `scripts/moments.py`, `reading.py` | The page the agent reads end to end, and the sound and chat candidates |
 | `scripts/look.py` | What was on screen and what was said before and during a moment |
 | `scripts/cut.py`, `edit.py`, `check.py` | Reframe, edit, verify |
+| `scripts/blind.py` | The stranger test: brief for a fresh reader, and the verdicts |
 
 ## After the clips
 
